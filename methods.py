@@ -1,3 +1,5 @@
+import os
+import matplotlib.pyplot as plt
 import numpy as np
 from autograd import grad
 import autograd.numpy as anp
@@ -956,3 +958,11 @@ def franke_function(x, y):
     term3 = 0.5 * np.exp(-((9 * x - 7) ** 2) / 4.0 - 0.25 * ((9 * y - 3) ** 2))
     term4 = -0.2 * np.exp(-((9 * x - 4) ** 2) - (9 * y - 7) ** 2)
     return term1 + term2 + term3 + term4
+
+def save_plot(filename):
+    output_dir = os.path.join("src", "Figures")
+    os.makedirs(output_dir, exist_ok=True)
+
+    output_file_path = os.path.join(output_dir, f"{filename}.png")
+    plt.savefig(output_file_path)
+    plt.close()
