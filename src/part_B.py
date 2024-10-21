@@ -154,6 +154,7 @@ class FeedForwardNeuralNetwork:
         :param epochs: number of epochs to train the network
         :param learning_rate: learning rate for the optimizer
         """
+        losses = []
         for epoch in range(epochs):
             epoch_loss = 0
 
@@ -169,12 +170,14 @@ class FeedForwardNeuralNetwork:
                 y_pred, _, _ = self.feed_forward(x)
                 epoch_loss += self.mse(y_true, y_pred)
 
-            print(f"Epoch {epoch}, Loss: {epoch_loss}")
-        return y_pred.flatten()
+            epoch_loss /= len(X)
+            losses.append(epoch_loss)
+            # print(f"Epoch {epoch}, Loss: {epoch_loss}")
+        return losses
 
 
 def eval_ffnn(X_train, X_test, z_train, z_test, epochs, learning_rate):
-    layer_sizes = [2, 20, 1]
+    layer_sizes = [2, 50, 1]
     ffnn = FeedForwardNeuralNetwork(layer_sizes)
     ffnn.train_network(X_train, z_train.reshape(-1, 1), epochs, learning_rate)
 
@@ -205,24 +208,47 @@ if __name__ == "__main__":
     scaler_X = MinMaxScaler()
     scaler_Y = MinMaxScaler()
 
-    X_train = scaler_X.fit_transform(X_train)
-    X_test = scaler_X.transform(X_test)
-    Z_train = scaler_Y.fit_transform(z_train.reshape(-1, 1))
-    Z_test = scaler_Y.transform(z_test.reshape(-1, 1))
+    X_train_scaled = scaler_X.fit_transform(X_train)
+    X_test_scaled = scaler_X.transform(X_test)
 
-    epochs = 50
-    learning_rate = 0.01
+    Z_train_scaled = scaler_Y.fit_transform(z_train.reshape(-1, 1)).ravel()
+    Z_test_scaled = scaler_Y.transform(z_test.reshape(-1, 1)).ravel()
+
+    learning_rates = [0.001, 0.01, 0.1]
+    epochs = 1000
+
+    # Store losses for each learning rate
+    losses_dict = {lr: [] for lr in learning_rates}
+
+    # Initialize and train the model for each learning rate
+    for lr in learning_rates:
+        nn = FeedForwardNeuralNetwork(layer_sizes=[2, 5, 1])  # Example layer sizes
+        losses = nn.train_network(X_train_scaled, Z_train_scaled, epochs, lr)
+        losses_dict[lr] = losses
+
+    # Plotting the results
+    plt.figure(figsize=(12, 6))
+
+    for lr, losses in losses_dict.items():
+        plt.plot(range(epochs), losses, label=f"Learning Rate: {lr}")
+
+    plt.title("Training Loss over Epochs for Different Learning Rates")
+    plt.xlabel("Epochs")
+    plt.ylabel("Mean Squared Error (MSE)")
+    plt.legend()
+    plt.grid()
+    plt.show()
 
     # compare
     ols_res = ols_regression()
     ridge_res = ridge_regression()
     ffnn_res = eval_ffnn(
-        X_train,
-        X_test,
-        Z_train,
-        Z_test,
+        X_train_scaled,
+        X_test_scaled,
+        Z_train_scaled,
+        Z_test_scaled,
         epochs,
-        learning_rate,
+        learning_rate=0.01,
     )
 
     print(f"OLS: {ols_res}")
@@ -231,26 +257,28 @@ if __name__ == "__main__":
 
     # comparing on the sci-kit learn implementation.
     mlp = MLPRegressor(
-        hidden_layer_sizes=(20,),
+        hidden_layer_sizes=(50, 50),
         activation="logistic",
-        learning_rate_init=0.001,
+        learning_rate_init=0.01,  # increasing the learning rate drastically improved the mlp performance.
         max_iter=1000,
-        alpha=0,
+        alpha=0.0001,
         random_state=42,
     )
 
-    mlp.fit(X_train, Z_train)
-    y_pred_train_sklearn = mlp.predict(X_train)
-    y_pred_test_sklearn = mlp.predict(X_test)
+    mlp.fit(X_train_scaled, Z_train_scaled)
+    mlp.n_iter_
+
+    y_pred_train_sklearn = mlp.predict(X_train_scaled)
+    y_pred_test_sklearn = mlp.predict(X_test_scaled)
 
     # MSE for Scikit-Learn FFNN
-    mse_train_sklearn = mean_squared_error(z_train, y_pred_train_sklearn)
-    mse_test_sklearn = mean_squared_error(z_test, y_pred_test_sklearn)
-    r2_train_sklearn = r2_score(z_train, y_pred_train_sklearn)
-    r2_test_sklearn = r2_score(z_test, y_pred_test_sklearn)
+    mse_train_sklearn = mean_squared_error(Z_train_scaled, y_pred_train_sklearn)
+    mse_test_sklearn = mean_squared_error(Z_test_scaled, y_pred_test_sklearn)
+    r2_train_sklearn = r2_score(Z_train_scaled, y_pred_train_sklearn)
+    r2_test_sklearn = r2_score(Z_test_scaled, y_pred_test_sklearn)
     print(
         f"Scikit-Learn FFNN: Train MSE = {mse_train_sklearn}, Test MSE = {mse_test_sklearn}, Train R2 = {r2_train_sklearn}, Test R2 = {r2_test_sklearn}"
     )
     print(
-        f"My own ffnn: Train MSE = {ffnn_res[0]}, Test MSE = {ffnn_res[1]}, Train R2 = {r2_train_sklearn}, Test R2 = {r2_test_sklearn}"
+        f"My own ffnn: Train MSE = {ffnn_res[0]}, Test MSE = {ffnn_res[1]}, Train R2 = {ffnn_res[2]}, Test R2 = {ffnn_res[3]}"
     )
