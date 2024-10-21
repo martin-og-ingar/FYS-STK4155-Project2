@@ -30,7 +30,7 @@ from sklearn.neural_network import MLPRegressor
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 import numpy as np
 from methods import franke_function, save_plot
@@ -184,7 +184,9 @@ def eval_ffnn(X_train, X_test, z_train, z_test, epochs, learning_rate):
 
     mse_train = mean_squared_error(z_train.reshape(-1, 1), y_pred_train.T)
     mse_test = mean_squared_error(z_test.reshape(-1, 1), y_pred_test.T)
-    return mse_train, mse_test
+    r2_train = r2_score(z_train.reshape(-1, 1), y_pred_train.T)
+    r2_test = r2_score(z_test.reshape(-1, 1), y_pred_test.T)
+    return mse_train, mse_test, r2_train, r2_test
 
 
 if __name__ == "__main__":
@@ -237,14 +239,18 @@ if __name__ == "__main__":
         random_state=42,
     )
 
-    mlp.fit(X_train_scaled, Z_train_scaled)
+    mlp.fit(X_train, Z_train)
     y_pred_train_sklearn = mlp.predict(X_train)
     y_pred_test_sklearn = mlp.predict(X_test)
 
     # MSE for Scikit-Learn FFNN
     mse_train_sklearn = mean_squared_error(z_train, y_pred_train_sklearn)
     mse_test_sklearn = mean_squared_error(z_test, y_pred_test_sklearn)
+    r2_train_sklearn = r2_score(z_train, y_pred_train_sklearn)
+    r2_test_sklearn = r2_score(z_test, y_pred_test_sklearn)
     print(
-        f"Scikit-Learn FFNN: Train MSE = {mse_train_sklearn}, Test MSE = {mse_test_sklearn}"
+        f"Scikit-Learn FFNN: Train MSE = {mse_train_sklearn}, Test MSE = {mse_test_sklearn}, Train R2 = {r2_train_sklearn}, Test R2 = {r2_test_sklearn}"
     )
-    print(f"My own ffnn: Train MSE = {ffnn_res[0]}, Test MSE = {ffnn_res[1]}")
+    print(
+        f"My own ffnn: Train MSE = {ffnn_res[0]}, Test MSE = {ffnn_res[1]}, Train R2 = {r2_train_sklearn}, Test R2 = {r2_test_sklearn}"
+    )

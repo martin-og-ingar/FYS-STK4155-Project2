@@ -28,6 +28,8 @@ def ols_regression(n=1000, noise=0.1, max_degree=5):
 
     mse_train_results = {}
     mse_test_results = {}
+    r2_train_results = {}
+    r2_test_results = {}
     beta_values = []
     res = []
 
@@ -45,11 +47,13 @@ def ols_regression(n=1000, noise=0.1, max_degree=5):
 
         mse_train = mean_squared_error(z_train, z_pred_train)
         mse_test = mean_squared_error(z_test, z_pred_test)
+        r2_train = r2_score(z_train, z_pred_train)
+        r2_test = r2_score(z_test, z_pred_test)
 
         mse_train_results[degree] = mse_train
         mse_test_results[degree] = mse_test
         beta_values.append(betas)
-        res.append((degree, mse_train, mse_test))
+        res.append((degree, mse_train, mse_test, r2_train, r2_test))
 
     return res
 
@@ -76,6 +80,8 @@ def ridge_regression(n=1000, noise=0.1, max_degree=5):
     lambda_values = [0.001, 0.01, 0.1, 1, 10]
     mse_values = {lmb: [] for lmb in lambda_values}
     mse_values_test = {lmb: [] for lmb in lambda_values}
+    r2_values_train = {lmb: [] for lmb in lambda_values}
+    r2_values_test = {lmb: [] for lmb in lambda_values}
     res = {lmb: [] for lmb in lambda_values}
 
     degrees = range(1, 6)
@@ -98,9 +104,11 @@ def ridge_regression(n=1000, noise=0.1, max_degree=5):
             z_pred_test = x_test_poly @ beta_ridge
             mse_train = mean_squared_error(z_train, z_pred_train)
             mse_test = mean_squared_error(z_test, z_pred_test)
+            r2_train = r2_score(z_train, z_pred_train)
+            r2_test = r2_score(z_test, z_pred_test)
             mse_values_test[lmb].append(mse_test)
             mse_values[lmb].append(mse_train)
-            res[lmb].append((degree, mse_train, mse_test))
+            res[lmb].append((degree, mse_train, mse_test, r2_train, r2_test))
     return res
 
 
