@@ -72,6 +72,7 @@ class FeedForwardNeuralNetwork:
     # in addition it is a convex function, which makes it easier to find the global minimum.
     # also it was used in project 1.
     # also it is easy to differentiate because of the square term.
+
     def mse(self, y_true, y_pred):
         return np.mean((y_true - y_pred) ** 2)
 
@@ -172,32 +173,6 @@ class FeedForwardNeuralNetwork:
         return y_pred.flatten()
 
 
-def plot_ffnn(ffnn, X_test, Y_test, scaler_Y):
-    Y_pred_scaled = np.array(
-        [ffnn.feed_forward(xi.reshape(-1, 1))[0] for xi in X_test]
-    ).flatten()
-
-    Y_pred = scaler_Y.inverse_transform(Y_pred_scaled.reshape(-1, 1)).flatten()
-
-    mse_test = ffnn.mse(Y_test, Y_pred)
-    print(f"Test MSE: {mse_test}")
-    plt.figure(figsize=(10, 6))
-    plt.scatter(Y_test, Y_pred, label="Predicted Data")
-    plt.xlabel("True Values")
-    plt.ylabel("Predicted Values")
-    plt.title("True vs Predicted Values")
-    plt.plot(
-        [Y_test.min(), Y_test.max()],
-        [Y_test.min(), Y_test.max()],
-        "k--",
-        lw=2,
-        label="Perfect Prediction",
-    )
-    plt.legend()
-    save_plot("true_vs_predicted.png")
-    plt.show()
-
-
 def eval_ffnn(X_train, X_test, z_train, z_test, epochs, learning_rate):
     layer_sizes = [2, 20, 1]
     ffnn = FeedForwardNeuralNetwork(layer_sizes)
@@ -213,7 +188,8 @@ def eval_ffnn(X_train, X_test, z_train, z_test, epochs, learning_rate):
 
 
 if __name__ == "__main__":
-    np.random.seed(42)
+    # Data initialization.
+    np.random.seed(1234)
     n = 100
     x = np.random.rand(n)
     y = np.random.rand(n)
@@ -223,26 +199,26 @@ if __name__ == "__main__":
     # Split the data.
     X_train, X_test, z_train, z_test = train_test_split(X, Z, test_size=0.2)
 
+    # scale.
     scaler_X = MinMaxScaler()
     scaler_Y = MinMaxScaler()
 
-    X_train_scaled = scaler_X.fit_transform(X_train)
-    X_test_scaled = scaler_X.transform(X_test)
-    Z_train_scaled = scaler_Y.fit_transform(z_train.reshape(-1, 1))
-    Z_test_scaled = scaler_Y.transform(z_test.reshape(-1, 1))
+    X_train = scaler_X.fit_transform(X_train)
+    X_test = scaler_X.transform(X_test)
+    Z_train = scaler_Y.fit_transform(z_train.reshape(-1, 1))
+    Z_test = scaler_Y.transform(z_test.reshape(-1, 1))
 
-    epochs = 100
+    epochs = 50
     learning_rate = 0.01
 
     # compare
     ols_res = ols_regression()
     ridge_res = ridge_regression()
-
     ffnn_res = eval_ffnn(
-        X_train_scaled,
-        X_test_scaled,
-        Z_train_scaled,
-        Z_test_scaled,
+        X_train,
+        X_test,
+        Z_train,
+        Z_test,
         epochs,
         learning_rate,
     )
@@ -251,38 +227,14 @@ if __name__ == "__main__":
     print(f"Ridge: {ridge_res}")
     print(f"FFNN: {ffnn_res}")
 
-    # Plot the fit of the model on the Franke function
-    # x_grid = np.linspace(0, 1, 100)
-    # y_grid = np.linspace(0, 1, 100)
-    # x_mesh, y_mesh = np.meshgrid(x_grid, y_grid)
-    # z_mesh_true = franke_function(x_mesh, y_mesh)
-
-    # X_mesh = np.c_[x_mesh.ravel(), y_mesh.ravel()]
-    # X_mesh_scaled = scaler_X.transform(X_mesh)
-    # z_mesh_pred_scaled = np.array(
-    #     [ffnn.feed_forward(xi.reshape(-1, 1))[0] for xi in X_mesh_scaled]
-    # ).flatten()
-    # z_mesh_pred = scaler_Y.inverse_transform(
-    #     z_mesh_pred_scaled.reshape(-1, 1)
-    # ).flatten()
-    # z_mesh_pred = z_mesh_pred.reshape(x_mesh.shape)
-
-    # fig = plt.figure(figsize=(14, 6))
-
-    # ax1 = fig.add_subplot(121, projection="3d")
-    # ax1.plot_surface(x_mesh, y_mesh, z_mesh_true, cmap="viridis")
-    # ax1.set_title("True Franke Function")
-
-    # ax2 = fig.add_subplot(122, projection="3d")
-    # ax2.plot_surface(x_mesh, y_mesh, z_mesh_pred, cmap="viridis")
-    # ax2.set_title("Predicted Franke Function")
-
-    # save_plot("ffnn_franke_function")
-    # plt.show()
-
-    # testing
+    # comparing on the sci-kit learn implementation.
     mlp = MLPRegressor(
-        hidden_layer_sizes=(10,), activation="logistic", max_iter=1000, solver="adam"
+        hidden_layer_sizes=(20,),
+        activation="logistic",
+        learning_rate_init=0.001,
+        max_iter=1000,
+        alpha=0,
+        random_state=42,
     )
 
     mlp.fit(X_train_scaled, Z_train_scaled)
@@ -295,3 +247,4 @@ if __name__ == "__main__":
     print(
         f"Scikit-Learn FFNN: Train MSE = {mse_train_sklearn}, Test MSE = {mse_test_sklearn}"
     )
+    print(f"My own ffnn: Train MSE = {ffnn_res[0]}, Test MSE = {ffnn_res[1]}")
