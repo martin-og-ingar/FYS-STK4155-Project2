@@ -47,7 +47,9 @@ class FeedForwardNeuralNetwork:
 
         # create W and b for each layer.
         for i in range(1, self.num_layers):
-            W = np.random.rand(layer_sizes[i], layer_sizes[i - 1]) * 0.01
+            W = np.random.randn(layer_sizes[i], layer_sizes[i - 1]) * np.sqrt(
+                2 / layer_sizes[i - 1]
+            )
 
             # Can be initialized to a small random value(normal distribution) or zeros.
             # initializing to zeros in this case (common practice)
@@ -57,6 +59,7 @@ class FeedForwardNeuralNetwork:
             self.biases.append(b)
 
     def sigmoid(self, z):
+        z = np.clip(z, -500, 500)  # Clip z to avoid overflow in exp
         return 1 / (1 + np.exp(-z))
 
     def sigmoid_derivative(self, z):
@@ -180,7 +183,7 @@ class FeedForwardNeuralNetwork:
 
             epoch_loss /= num_samples / self.batch_size
             losses.append(epoch_loss)
-            print(f"Epoch {epoch+1}/{self.epochs}, Loss: {epoch_loss:.6f}")
+            # print(f"Epoch {epoch+1}/{self.epochs}, Loss: {epoch_loss:.6f}")
         return losses
 
     def predict(self, X):
@@ -206,26 +209,52 @@ def eval_ffnn():
 
     layer_sizes = [2, 50, 1]
     epochs = 1000
-    learning_rate = 0.01
-    lmb = 0.01
     mini_batch_size = 10
+    learning_rates = [0.0001, 0.001, 0.01]
 
-    ffnn = FeedForwardNeuralNetwork(
-        X_train, z_train, layer_sizes, epochs, learning_rate, mini_batch_size, lmb
-    )
-    losses = ffnn.train_network()
+    lmbdas = [0.0, 0.001, 0.1, 1.0]
+    best_mse_test = float("inf")
+    best_r2_test = float("-inf")
+    best_params = {}
 
-    predictions = ffnn.predict(X_test)
-    predictions_train = ffnn.predict(X_train)
-    z_train_reshape = z_train.reshape(-1, 1)
+    results = []
 
-    mse_train = mean_squared_error(z_train_reshape, predictions_train)
-    mse_test = mean_squared_error(z_test, predictions)
-    r2_train = r2_score(z_train, predictions_train)
-    r2_test = r2_score(z_test, predictions)
+    for lr in learning_rates:
+        for lmb in lmbdas:
+            ffnn = FeedForwardNeuralNetwork(
+                X_train, z_train, layer_sizes, epochs, lr, mini_batch_size, lmb
+            )
+            losses = ffnn.train_network()
+            z_pred_train = ffnn.predict(X_train)
+            z_pred_test = ffnn.predict(X_test)
 
-    # learning_rates = [0.00001, 0.0001, 0.001, 0.01, 0.1]
+            mse_train = mean_squared_error(z_train, z_pred_train)
+            mse_test = mean_squared_error(z_test, z_pred_test)
+            r2_train = r2_score(z_train, z_pred_train)
+            r2_test = r2_score(z_test, z_pred_test)
 
+            results.append(
+                {
+                    "learning_rate": lr,
+                    "lmbda": lmb,
+                    "mse_train": mse_train,
+                    "mse_test": mse_test,
+                    "r2_train": r2_train,
+                    "r2_test": r2_test,
+                }
+            )
+
+            if mse_test < best_mse_test:
+                best_mse_test = mse_test
+                best_r2_test = r2_test
+                best_params = {"learning_rate": lr, "lmbda": lmb}
+
+            print(
+                f"lr: {lr}, lambda: {lmb}, mse_train: {mse_train}, mse_test: {mse_test}"
+            )
+
+    print(f"Best MSE test: {best_mse_test}, Best R2 test: {best_r2_test}")
+    print(f"Best parameters: {best_params['learning_rate']}, {best_params['lmbda']}")
     # # Store losses for each learning rate
     # losses_dict = {lr: [] for lr in learning_rates}
 
@@ -249,7 +278,7 @@ def eval_ffnn():
     # save_plot("iter_ffnn_training_loss.png")
     # plt.show()
 
-    return mse_train, mse_test, r2_train, r2_test
+    return results, best_params
 
 
 def generate_data():
@@ -287,9 +316,9 @@ if __name__ == "__main__":
 
     print(f"OLS: {ols_res}")
     print(f"Ridge: {ridge_res}")
-    print(
-        f"Train MSE = {ffnn_res[0]}, Test MSE = {ffnn_res[1]},Test R2 = {ffnn_res[2]}, Test R2 = {ffnn_res[3]}"
-    )
+    # print(
+    #     f"Train MSE = {ffnn_res[0]}, Test MSE = {ffnn_res[1]},Test R2 = {ffnn_res[2]}, Test R2 = {ffnn_res[3]}"
+    # )
 
     param_grid = {
         "learning_rate_init": [0.0001, 0.001, 0.01, 0.1],
