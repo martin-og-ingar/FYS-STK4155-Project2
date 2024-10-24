@@ -7,7 +7,7 @@ from sklearn.metrics import mean_squared_error, r2_score
 from methods import franke_function, save_plot
 
 
-def ols_regression(n=1000, noise=0.1, max_degree=5):
+def ols_regression(n=100, noise=0.1, max_degree=5):
     np.random.seed(42)
     x = np.random.rand(n)
     y = np.random.rand(n)
@@ -58,7 +58,7 @@ def ols_regression(n=1000, noise=0.1, max_degree=5):
     return res
 
 
-def ridge_regression(n=1000, noise=0.1, max_degree=5):
+def ridge_regression(n=100, noise=0.1, max_degree=5):
     np.random.seed(42)
     n = 100
     x = np.random.uniform(0, 1, n)
