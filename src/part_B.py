@@ -197,7 +197,7 @@ class FeedForwardNeuralNetwork:
                 batch_predictions.T
             )  # Transpose to match the original shape
 
-        return np.vstack(predictions).reshape(-1)
+        return np.vstack(predictions)
 
 
 def eval_ffnn():
