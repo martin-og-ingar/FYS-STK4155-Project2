@@ -305,50 +305,24 @@ def eval_ffnn():
 
     results_df = pd.DataFrame(results)
 
-    # 1. Heatmap of MSE for Different Learning Rates and Lambda Values
-    plt.figure(figsize=(12, 6))
-    pivot_mse = results_df.pivot_table(
-        values="mse_test", index="lmbda", columns="learning_rate"
-    )
+    # 1. Heatmap of MSE Test Scores
+    plt.figure(figsize=(16, 8))
+    for ac in activations:
+        plt.subplot(1, len(activations), activations.index(ac) + 1)  # Create subplots
+        subset = results_df[results_df["activation"] == ac]
+        pivot_mse = subset.pivot_table(
+            values="mse_test", index="lmbda", columns="learning_rate"
+        )
 
-    sns.heatmap(pivot_mse, annot=True, cmap="viridis", fmt=".3f")
-    plt.title("Heatmap of MSE Test Scores")
-    plt.xlabel("Learning Rate")
-    plt.ylabel("Lambda (Regularization)")
-    save_plot("ffnn_heatmap_mse.png")
+        sns.heatmap(
+            pivot_mse, annot=True, cmap="viridis", fmt=".3f", cbar_kws={"label": "MSE"}
+        )
+        plt.title(f"MSE Test Scores - Activation: {ac}")
+        plt.xlabel("Learning Rate")
+        plt.ylabel("Lambda (Regularization)")
+    plt.tight_layout()
+    save_plot("ffnn_mse_heatmap_various_activations")
     plt.show()
-
-    # 2. Line Plot for R² Scores
-    # plt.figure(figsize=(12, 6))
-    # for ac in activations:
-    #     subset = results_df[results_df["activation"] == ac]
-    #     plt.plot(subset["learning_rate"], subset["r2_test"], marker="o", label=ac)
-
-    # plt.title("R² Test Scores for Different Learning Rates")
-    # plt.xlabel("Learning Rate")
-    # plt.ylabel("R² Score")
-    # plt.xscale("log")  # Log scale for better visibility
-    # plt.legend(title="Activation Function")
-    # plt.grid()
-    # save_plot("ffnn_r2_scores.png")
-    # plt.show()
-
-    # # Optionally, you can also create a combined plot for both metrics.
-    # plt.figure(figsize=(12, 6))
-    # for ac in activations:
-    #     subset = results_df[results_df["activation"] == ac]
-    #     plt.plot(
-    #         subset["learning_rate"], subset["mse_test"], marker="o", label=f"MSE - {ac}"
-    #     )
-
-    # plt.title("MSE Test Scores for Different Learning Rates")
-    # plt.xlabel("Learning Rate")
-    # plt.ylabel("MSE Score")
-    # plt.xscale("log")  # Log scale for better visibility
-    # plt.legend(title="Activation Function")
-    # plt.grid()
-    # save_plot("ffnn_mse_scores.png")
-    # plt.show()
 
     return results, best_params
 
