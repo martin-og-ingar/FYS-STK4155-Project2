@@ -16,6 +16,9 @@ from methods import franke_function, save_plot
 from project1_methods import ols_regression, ridge_regression
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 class FeedForwardNeuralNetwork:
@@ -26,6 +29,7 @@ class FeedForwardNeuralNetwork:
         layer_sizes,
         epochs,
         learning_rate,
+        hidden_activation,
         batch_size=5,
         lmb=0.0,
     ):
@@ -39,6 +43,7 @@ class FeedForwardNeuralNetwork:
         self.num_layers = len(layer_sizes)
         self.epochs = epochs
         self.learning_rate = learning_rate
+        self.hidden_activation = hidden_activation
         self.batch_size = batch_size
         self.lmb = lmb
 
@@ -47,16 +52,38 @@ class FeedForwardNeuralNetwork:
 
         # create W and b for each layer.
         for i in range(1, self.num_layers):
+            # weight is initialized to a small random value (normal distribution) with mean 0 and std 1.
+
+            # USING XAVIER.
             W = np.random.randn(layer_sizes[i], layer_sizes[i - 1]) * np.sqrt(
-                2 / layer_sizes[i - 1]
+                2 / (layer_sizes[i - 1] + layer_sizes[i])
             )
 
             # Can be initialized to a small random value(normal distribution) or zeros.
             # initializing to zeros in this case (common practice)
             b = np.zeros((layer_sizes[i], 1))
-
             self.weights.append(W)
             self.biases.append(b)
+
+    def activate(self, z):
+        if self.hidden_activation == "sigmoid":
+            return self.sigmoid(z)
+        elif self.hidden_activation == "relu":
+            return self.relu(z)
+        elif self.hidden_activation == "leaky_relu":
+            return self.leaky_relu(z)
+
+    def relu(self, z):
+        return np.maximum(0, z)
+
+    def relu_derivative(self, z):
+        return np.where(z > 0, 1, 0)
+
+    def leaky_relu(self, z):
+        return np.where(z > 0, z, 0.01 * z)
+
+    def leaky_relu_derivative(self, z):
+        return np.where(z > 0, 1, 0.01)
 
     def sigmoid(self, z):
         z = np.clip(z, -500, 500)  # Clip z to avoid overflow in exp
@@ -96,7 +123,7 @@ class FeedForwardNeuralNetwork:
         for W, b in zip(self.weights[:-1], self.biases[:-1]):
             z = np.dot(W, a) + b
             z_values.append(z)
-            a = self.sigmoid(z)
+            a = self.activate(z)  # apply activation function.
             activations.append(a)
 
         W_final_layer, b_final_layer = self.weights[-1], self.biases[-1]
@@ -132,7 +159,18 @@ class FeedForwardNeuralNetwork:
 
         for l in range(2, self.num_layers):
             z = zs[-l]
-            delta = np.dot(self.weights[-l + 1].T, delta) * self.sigmoid_derivative(z)
+
+            if self.hidden_activation == "sigmoid":
+                delta = np.dot(self.weights[-l + 1].T, delta) * self.sigmoid_derivative(
+                    z
+                )
+            elif self.hidden_activation == "relu":
+                delta = np.dot(self.weights[-l + 1].T, delta) * self.relu_derivative(z)
+            elif self.hidden_activation == "leaky_relu":
+                delta = np.dot(
+                    self.weights[-l + 1].T, delta
+                ) * self.leaky_relu_derivative(z)
+            # delta = np.dot(self.weights[-l + 1].T, delta) * self.sigmoid_derivative(z)
             dW[-l] = (
                 np.dot(delta, activations[-l - 1].T) + (self.lmb / m) * self.weights[-l]
             )
@@ -170,8 +208,6 @@ class FeedForwardNeuralNetwork:
                 end_idx = min(start_idx + self.batch_size, num_samples)
                 x_batch = X_shuffled[start_idx:end_idx].T
                 z_batch = Z_shuffled[start_idx:end_idx].T
-                # x = x.reshape(-1, 1)
-                # y_true = y_true.reshape(-1, 1)
 
                 # Perform back propagation
                 dW, db = self.back_prop(x_batch, z_batch)
@@ -210,72 +246,108 @@ def eval_ffnn():
     layer_sizes = [2, 50, 1]
     epochs = 1000
     mini_batch_size = 10
-    learning_rates = [0.0001, 0.001, 0.01]
+    learning_rates = [0.00001, 0.0001, 0.001, 0.01]
 
     lmbdas = [0.0, 0.001, 0.1, 1.0]
     best_mse_test = float("inf")
     best_r2_test = float("-inf")
     best_params = {}
-
+    activations = ["sigmoid", "relu", "leaky_relu"]
     results = []
+    for ac in activations:
+        print(f"Activation function: {ac}")
+        for lr in learning_rates:
+            for lmb in lmbdas:
+                ffnn = FeedForwardNeuralNetwork(
+                    X_train,
+                    z_train,
+                    layer_sizes,
+                    epochs,
+                    lr,
+                    ac,
+                    mini_batch_size,
+                    lmb,
+                )
+                losses = ffnn.train_network()
+                z_pred_train = ffnn.predict(X_train)
+                z_pred_test = ffnn.predict(X_test)
 
-    for lr in learning_rates:
-        for lmb in lmbdas:
-            ffnn = FeedForwardNeuralNetwork(
-                X_train, z_train, layer_sizes, epochs, lr, mini_batch_size, lmb
-            )
-            losses = ffnn.train_network()
-            z_pred_train = ffnn.predict(X_train)
-            z_pred_test = ffnn.predict(X_test)
+                mse_train = mean_squared_error(z_train, z_pred_train)
+                mse_test = mean_squared_error(z_test, z_pred_test)
+                r2_train = r2_score(z_train, z_pred_train)
+                r2_test = r2_score(z_test, z_pred_test)
 
-            mse_train = mean_squared_error(z_train, z_pred_train)
-            mse_test = mean_squared_error(z_test, z_pred_test)
-            r2_train = r2_score(z_train, z_pred_train)
-            r2_test = r2_score(z_test, z_pred_test)
+                results.append(
+                    {
+                        "learning_rate": lr,
+                        "lmbda": lmb,
+                        "mse_train": mse_train,
+                        "mse_test": mse_test,
+                        "r2_train": r2_train,
+                        "r2_test": r2_test,
+                        "activation": ac,
+                    }
+                )
 
-            results.append(
-                {
-                    "learning_rate": lr,
-                    "lmbda": lmb,
-                    "mse_train": mse_train,
-                    "mse_test": mse_test,
-                    "r2_train": r2_train,
-                    "r2_test": r2_test,
-                }
-            )
+                if mse_test < best_mse_test:
+                    best_mse_test = mse_test
+                    best_r2_test = r2_test
+                    best_params = {"learning_rate": lr, "lmbda": lmb, "activation": ac}
 
-            if mse_test < best_mse_test:
-                best_mse_test = mse_test
-                best_r2_test = r2_test
-                best_params = {"learning_rate": lr, "lmbda": lmb}
-
-            print(
-                f"lr: {lr}, lambda: {lmb}, mse_train: {mse_train}, mse_test: {mse_test}"
-            )
+                print(
+                    f"lr: {lr}, lambda: {lmb}, mse_train: {mse_train}, mse_test: {mse_test}"
+                )
 
     print(f"Best MSE test: {best_mse_test}, Best R2 test: {best_r2_test}")
-    print(f"Best parameters: {best_params['learning_rate']}, {best_params['lmbda']}")
-    # # Store losses for each learning rate
-    # losses_dict = {lr: [] for lr in learning_rates}
+    print(
+        f"Best parameters: {best_params['learning_rate']}, {best_params['lmbda']}, {best_params['activation']}"
+    )
 
-    # # Initialize and train the model for each learning rate
-    # for lr in learning_rates:
-    #     nn = FeedForwardNeuralNetwork(layer_sizes=[2, 5, 5])
-    #     losses = nn.train_network(X_train, z_train, epochs, lr)
-    #     losses_dict[lr] = losses
+    results_df = pd.DataFrame(results)
 
-    # # Plotting the results
+    # 1. Heatmap of MSE for Different Learning Rates and Lambda Values
+    plt.figure(figsize=(12, 6))
+    pivot_mse = results_df.pivot_table(
+        values="mse_test", index="lmbda", columns="learning_rate"
+    )
+
+    sns.heatmap(pivot_mse, annot=True, cmap="viridis", fmt=".3f")
+    plt.title("Heatmap of MSE Test Scores")
+    plt.xlabel("Learning Rate")
+    plt.ylabel("Lambda (Regularization)")
+    save_plot("ffnn_heatmap_mse.png")
+    plt.show()
+
+    # 2. Line Plot for R² Scores
     # plt.figure(figsize=(12, 6))
+    # for ac in activations:
+    #     subset = results_df[results_df["activation"] == ac]
+    #     plt.plot(subset["learning_rate"], subset["r2_test"], marker="o", label=ac)
 
-    # for lr, losses in losses_dict.items():
-    #     plt.plot(range(epochs), losses, label=f"Learning Rate: {lr}")
-
-    # plt.title("Training Loss over Epochs for Different Learning Rates")
-    # plt.xlabel("Epochs")
-    # plt.ylabel("Mean Squared Error (MSE)")
-    # plt.legend()
+    # plt.title("R² Test Scores for Different Learning Rates")
+    # plt.xlabel("Learning Rate")
+    # plt.ylabel("R² Score")
+    # plt.xscale("log")  # Log scale for better visibility
+    # plt.legend(title="Activation Function")
     # plt.grid()
-    # save_plot("iter_ffnn_training_loss.png")
+    # save_plot("ffnn_r2_scores.png")
+    # plt.show()
+
+    # # Optionally, you can also create a combined plot for both metrics.
+    # plt.figure(figsize=(12, 6))
+    # for ac in activations:
+    #     subset = results_df[results_df["activation"] == ac]
+    #     plt.plot(
+    #         subset["learning_rate"], subset["mse_test"], marker="o", label=f"MSE - {ac}"
+    #     )
+
+    # plt.title("MSE Test Scores for Different Learning Rates")
+    # plt.xlabel("Learning Rate")
+    # plt.ylabel("MSE Score")
+    # plt.xscale("log")  # Log scale for better visibility
+    # plt.legend(title="Activation Function")
+    # plt.grid()
+    # save_plot("ffnn_mse_scores.png")
     # plt.show()
 
     return results, best_params
@@ -316,10 +388,6 @@ if __name__ == "__main__":
 
     print(f"OLS: {ols_res}")
     print(f"Ridge: {ridge_res}")
-    # print(
-    #     f"Train MSE = {ffnn_res[0]}, Test MSE = {ffnn_res[1]},Test R2 = {ffnn_res[2]}, Test R2 = {ffnn_res[3]}"
-    # )
-
     param_grid = {
         "learning_rate_init": [0.0001, 0.001, 0.01, 0.1],
         "alpha": [1e-6, 1e-4, 1e-2, 1e-1],
