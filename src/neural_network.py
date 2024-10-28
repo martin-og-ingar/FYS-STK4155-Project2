@@ -156,17 +156,25 @@ class FeedForwardNeuralNetwork:
         dW = [np.zeros(W.shape) for W in self.weights]
         db = [np.zeros(b.shape) for b in self.biases]
 
-        m = x.shape[0]
+        m = x.shape[1]
 
         # gradient for output layer
 
         # Holds for both regression and classification tasks becuase
         # the gradient loss with respect to output simplifies to the same expression.
-        delta = self.mse_derivative(y_true, y_pred)
 
         # gradient for last layers.
-        dW[-1] = np.dot(delta, activations[-2].T) + (self.lmb / m) * self.weights[-1]
-        db[-1] = delta  # Gradient final layer biases
+        if self.mode == "classification":
+            delta = y_pred - y_true
+            dW[-1] = np.dot(delta, activations[-2].T) / m
+            db[-1] = np.sum(delta, axis=1, keepdims=True) / m
+        else:
+            delta = self.mse_derivative(y_true, y_pred)
+            dW[-1] = (
+                np.dot(delta, activations[-2].T) + (self.lmb / m) * self.weights[-1]
+            )
+            db[-1] += (self.lmb / m) * self.weights[-1]
+            db[-1] = np.sum(delta, axis=1, keepdims=True) / m
 
         for l in range(2, self.num_layers):
             z = zs[-l]
@@ -346,7 +354,7 @@ def eval_classification_ffnn():
     data = load_breast_cancer()
 
     X = data.data
-    y = data.target
+    y = data.target.reshape(-1, 1)
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
@@ -354,13 +362,25 @@ def eval_classification_ffnn():
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
 
+    layer_sizes = [X_train.shape[1], 32, 16, 1]
+
+    epochs = 1000
+    mini_batch_size = 10
+
     nn = FeedForwardNeuralNetwork(
-        X_train, y_train, [30, 30, 1], 1000, 0.01, "sigmoid", 10, mode="classification"
+        X_train,
+        y_train,
+        layer_sizes,
+        epochs,
+        0.01,
+        "sigmoid",
+        mini_batch_size,
+        mode="classification",
     )
 
     loss = nn.train_network()
 
-    print(loss)
+    print("Training complete, final loss , " + str(loss[-1]))
 
 
 def generate_data():
