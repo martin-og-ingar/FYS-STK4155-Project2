@@ -1,4 +1,6 @@
 """
+This code is developed for project 2 in FYS-STK4155 at the University of Oslo.
+It contain subtask b, c and d of the project.
 """
 
 import os, sys
@@ -32,6 +34,7 @@ class FeedForwardNeuralNetwork:
         hidden_activation,
         batch_size=5,
         lmb=0.0,
+        mode="regression",
     ):
         """
         Initialising the neural network.
@@ -46,6 +49,7 @@ class FeedForwardNeuralNetwork:
         self.hidden_activation = hidden_activation
         self.batch_size = batch_size
         self.lmb = lmb
+        self.mode = mode
 
         self.weights = []
         self.biases = []
@@ -92,6 +96,9 @@ class FeedForwardNeuralNetwork:
     def sigmoid_derivative(self, z):
         return self.sigmoid(z) * (1 - self.sigmoid(z))
 
+    def cost_classification(self, y_true, y_pred):
+        return -np.mean(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred))
+
     # MSE as it is a function typically used for regression tasks.
     # in addition it is a convex function, which makes it easier to find the global minimum.
     # also it was used in project 1.
@@ -127,7 +134,10 @@ class FeedForwardNeuralNetwork:
             activations.append(a)
 
         W_final_layer, b_final_layer = self.weights[-1], self.biases[-1]
-        final_output = W_final_layer @ a + b_final_layer
+        if self.mode == "classification":
+            final_output = self.sigmoid(W_final_layer @ a + b_final_layer)
+        else:
+            final_output = W_final_layer @ a + b_final_layer
         z_values.append(final_output)
         activations.append(final_output)
 
@@ -149,12 +159,13 @@ class FeedForwardNeuralNetwork:
         m = x.shape[0]
 
         # gradient for output layer
+
+        # Holds for both regression and classification tasks becuase
+        # the gradient loss with respect to output simplifies to the same expression.
         delta = self.mse_derivative(y_true, y_pred)
 
-        # gradient for hidden layers.
-        dW[-1] = (
-            np.dot(delta, activations[-2].T) + (self.lmb / m) * self.weights[-1]
-        )  # Gradient final layer weights
+        # gradient for last layers.
+        dW[-1] = np.dot(delta, activations[-2].T) + (self.lmb / m) * self.weights[-1]
         db[-1] = delta  # Gradient final layer biases
 
         for l in range(2, self.num_layers):
@@ -246,6 +257,7 @@ def eval_ffnn():
     layer_sizes = [2, 50, 1]
     epochs = 1000
     mini_batch_size = 10
+    mode = "classification"
     learning_rates = [0.00001, 0.0001, 0.001, 0.01]
 
     lmbdas = [0.0, 0.001, 0.1, 1.0]
@@ -327,6 +339,30 @@ def eval_ffnn():
     return results, best_params
 
 
+def eval_classification_ffnn():
+    # malignant[0], benign[1], positive indicates cancer.
+    from sklearn.datasets import load_breast_cancer
+
+    data = load_breast_cancer()
+
+    X = data.data
+    y = data.target
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+
+    nn = FeedForwardNeuralNetwork(
+        X_train, y_train, [30, 30, 1], 1000, 0.01, "sigmoid", 10, mode="classification"
+    )
+
+    loss = nn.train_network()
+
+    print(loss)
+
+
 def generate_data():
     np.random.seed(42)
     n = 100
@@ -354,41 +390,42 @@ def generate_data():
 
 if __name__ == "__main__":
 
+    eval_classification_ffnn()
     # compare
-    X_train, X_test, z_train, z_test, scaler_Z = generate_data()
-    ols_res = ols_regression()
-    ridge_res = ridge_regression()
-    ffnn_res = eval_ffnn()
+    # X_train, X_test, z_train, z_test, scaler_Z = generate_data()
+    # ols_res = ols_regression()
+    # ridge_res = ridge_regression()
+    # ffnn_res = eval_ffnn()
 
-    print(f"OLS: {ols_res}")
-    print(f"Ridge: {ridge_res}")
-    param_grid = {
-        "learning_rate_init": [0.0001, 0.001, 0.01, 0.1],
-        "alpha": [1e-6, 1e-4, 1e-2, 1e-1],
-    }
-    # comparing on the sci-kit learn implementation.
-    mlp = MLPRegressor(
-        hidden_layer_sizes=(5, 5),
-        activation="logistic",
-        max_iter=1000,
-        random_state=42,
-    )
-    # Perform Grid Search
-    grid_search = GridSearchCV(mlp, param_grid, scoring="neg_mean_squared_error", cv=5)
-    grid_search.fit(X_train, z_train)
+    # print(f"OLS: {ols_res}")
+    # print(f"Ridge: {ridge_res}")
+    # param_grid = {
+    #     "learning_rate_init": [0.0001, 0.001, 0.01, 0.1],
+    #     "alpha": [1e-6, 1e-4, 1e-2, 1e-1],
+    # }
+    # # comparing on the sci-kit learn implementation.
+    # mlp = MLPRegressor(
+    #     hidden_layer_sizes=(5, 5),
+    #     activation="logistic",
+    #     max_iter=1000,
+    #     random_state=42,
+    # )
+    # # Perform Grid Search
+    # grid_search = GridSearchCV(mlp, param_grid, scoring="neg_mean_squared_error", cv=5)
+    # grid_search.fit(X_train, z_train)
 
-    # Get the best parameters
-    print("Best parameters found: ", grid_search.best_params_)
+    # # Get the best parameters
+    # print("Best parameters found: ", grid_search.best_params_)
 
-    y_pred_test = grid_search.best_estimator_.predict(X_test)
-    y_pred_train = grid_search.best_estimator_.predict(X_train)
+    # y_pred_test = grid_search.best_estimator_.predict(X_test)
+    # y_pred_train = grid_search.best_estimator_.predict(X_train)
 
-    mse_train = mean_squared_error(z_train, y_pred_train)
-    r2_train = r2_score(z_train, y_pred_train)
+    # mse_train = mean_squared_error(z_train, y_pred_train)
+    # r2_train = r2_score(z_train, y_pred_train)
 
-    mse_test = mean_squared_error(z_test, y_pred_test)
-    r2_test = r2_score(z_test, y_pred_test)
+    # mse_test = mean_squared_error(z_test, y_pred_test)
+    # r2_test = r2_score(z_test, y_pred_test)
 
-    print(
-        f"Test MSE: {mse_test}, Test R2: {r2_test}, Train MSE: {mse_train}, Train R2: {r2_train}"
-    )
+    # print(
+    #     f"Test MSE: {mse_test}, Test R2: {r2_test}, Train MSE: {mse_train}, Train R2: {r2_train}"
+    # )
