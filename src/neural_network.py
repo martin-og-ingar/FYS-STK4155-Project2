@@ -69,7 +69,13 @@ class FeedForwardNeuralNetwork:
             self.weights.append(W)
             self.biases.append(b)
 
-    def activate(self, z):
+    def activate_output(self, z):
+        if self.mode == "classification":
+            return self.sigmoid(z)
+        elif self.mode == "regression":
+            return z
+
+    def activate_hidden(self, z):
         if self.hidden_activation == "sigmoid":
             return self.sigmoid(z)
         elif self.hidden_activation == "relu":
@@ -115,11 +121,11 @@ class FeedForwardNeuralNetwork:
         """
         Perform a foreward pass through the network.
 
-        :param x: input data of shape (input_size, 1)
+        :param x: input data of shape (num_features, batch_size)
         :return: output of the network
         """
         a = x  # activation function.
-        activations = [a]
+        activations = []
         z_values = []
 
         # loop through all layers except the last one.
@@ -127,73 +133,49 @@ class FeedForwardNeuralNetwork:
         # This is becuase, for regression tasks, the final output layer should typically use linear activation function.
         # since we are predicting real-valued numbers.
         #
-        for W, b in zip(self.weights[:-1], self.biases[:-1]):
+        for i in range(self.num_layers - 1):
+            W, b = self.weights[i], self.biases[i]
             z = np.dot(W, a) + b
             z_values.append(z)
-            a = self.activate(z)  # apply activation function.
+
+            if i < len(self.weights) - 2:
+                a = self.activate_hidden(z)
+            else:
+                a = self.activate_output(z)
+
             activations.append(a)
 
-        W_final_layer, b_final_layer = self.weights[-1], self.biases[-1]
-        if self.mode == "classification":
-            final_output = self.sigmoid(W_final_layer @ a + b_final_layer)
-        else:
-            final_output = W_final_layer @ a + b_final_layer
-        z_values.append(final_output)
-        activations.append(final_output)
+        return a, activations, z_values
 
-        return final_output, activations, z_values
-
-    def back_prop(self, x, y_true):
+    def back_prop(self, x, y_true, current_batch_size):
         """
         Perform back propagation through the network.
 
-        :param x: input data of shape (input_size, 1)
-        :param y_true: true labels of shape (output_size, 1)
+        :param x: input data of shape (input_size, batch_size)
+        :param y_true: true labels of shape (output_size, batch_size)
         """
         y_pred, activations, zs = self.feed_forward(x)
 
         # Init gradients.
         dW = [np.zeros(W.shape) for W in self.weights]
         db = [np.zeros(b.shape) for b in self.biases]
+        m = current_batch_size  # number of samples.
 
-        m = x.shape[1]
+        delta = y_pred - y_true
 
-        # gradient for output layer
+        dW_final = np.dot(delta, activations[-2].T) / m
+        db_final = np.sum(delta, axis=1, keepdims=True) / m
 
-        # Holds for both regression and classification tasks becuase
-        # the gradient loss with respect to output simplifies to the same expression.
+        dW[-1] = dW_final + (self.lmb / m) * self.weights[-1]
+        db[-1] = db_final
 
-        # gradient for last layers.
-        if self.mode == "classification":
-            delta = y_pred - y_true
-            dW[-1] = np.dot(delta, activations[-2].T) / m
-            db[-1] = np.sum(delta, axis=1, keepdims=True) / m
-        else:
-            delta = self.mse_derivative(y_true, y_pred)
-            dW[-1] = (
-                np.dot(delta, activations[-2].T) + (self.lmb / m) * self.weights[-1]
+        for l in range(self.num_layers - 3, -1, -1):
+            delta = np.dot(self.weights[l + 1].T, delta) * self.sigmoid_derivative(
+                zs[l]
             )
-            db[-1] += (self.lmb / m) * self.weights[-1]
-            db[-1] = np.sum(delta, axis=1, keepdims=True) / m
 
-        for l in range(2, self.num_layers):
-            z = zs[-l]
-
-            if self.hidden_activation == "sigmoid":
-                delta = np.dot(self.weights[-l + 1].T, delta) * self.sigmoid_derivative(
-                    z
-                )
-            elif self.hidden_activation == "relu":
-                delta = np.dot(self.weights[-l + 1].T, delta) * self.relu_derivative(z)
-            elif self.hidden_activation == "leaky_relu":
-                delta = np.dot(
-                    self.weights[-l + 1].T, delta
-                ) * self.leaky_relu_derivative(z)
-            # delta = np.dot(self.weights[-l + 1].T, delta) * self.sigmoid_derivative(z)
-            dW[-l] = (
-                np.dot(delta, activations[-l - 1].T) + (self.lmb / m) * self.weights[-l]
-            )
-            db[-l] = delta
+            dW[l] = np.dot(delta, activations[l - 1].T) / m
+            db[l] = np.sum(delta, axis=1, keepdims=True) / m
         return dW, db
 
     def update_params(self, dW, db):
@@ -228,34 +210,50 @@ class FeedForwardNeuralNetwork:
                 x_batch = X_shuffled[start_idx:end_idx].T
                 z_batch = Z_shuffled[start_idx:end_idx].T
 
-                # Perform back propagation
-                dW, db = self.back_prop(x_batch, z_batch)
-
-                self.update_params(dW, db)
-
+                if self.mode == "classification":
+                    m = z_batch.shape[1]  # actual batch size.
+                else:
+                    m = x_batch.shape[1]
                 y_pred, _, _ = self.feed_forward(x_batch)
-                epoch_loss += self.mse(z_batch, y_pred)
+
+                # Perform back propagation
+
+                if self.mode == "classification":
+                    epoch_loss += self.cost_classification(z_batch, y_pred)
+                else:
+                    epoch_loss += self.mse(z_batch, y_pred)
+
+                dW, db = self.back_prop(x_batch, z_batch, m)
+                self.update_params(dW, db)
 
             epoch_loss /= num_samples / self.batch_size
             losses.append(epoch_loss)
-            # print(f"Epoch {epoch+1}/{self.epochs}, Loss: {epoch_loss:.6f}")
+            print(f"Epoch {epoch+1}/{self.epochs}, Loss: {epoch_loss:.6f}")
         return losses
 
     def predict(self, X):
-        predictions = []
-        num_samples = X.shape[0]
+        # Transpose the input to match the expected shape
+        x_batch = X.T  # Shape (n_features, num_samples)
 
-        for start_idx in range(0, num_samples, self.batch_size):
-            end_idx = min(start_idx + self.batch_size, num_samples)
-            x_batch = X[start_idx:end_idx].T  # Shape (num_features, batch_size)
+        # Get the predictions from the feedforward process
+        output, _, _ = self.feed_forward(x_batch)
 
-            # Get predictions for the mini-batch
-            batch_predictions, _, _ = self.feed_forward(x_batch)
-            predictions.append(
-                batch_predictions.T
-            )  # Transpose to match the original shape
+        if self.mode == "classification":
+            # For binary classification, output will be a single value
+            # Apply thresholding to convert probabilities to class labels
+            class_labels = (output > 0.5).astype(
+                int
+            )  # Convert probabilities to class labels (0 or 1)
+            return class_labels.flatten()  # Flatten to return a 1D array
 
-        return np.vstack(predictions)
+        elif self.mode == "regression":
+            # For regression, output can be returned directly
+            return output.flatten()  # Flatten to return a 1D array of predictions
+
+        else:
+            raise ValueError(
+                "Unsupported mode. Choose either 'classification' or 'regression'."
+            )
 
 
 def eval_ffnn():
@@ -263,9 +261,9 @@ def eval_ffnn():
     X_train, X_test, z_train, z_test, scaler_Z = generate_data()
 
     layer_sizes = [2, 50, 1]
-    epochs = 1000
+    epochs = 100
     mini_batch_size = 10
-    mode = "classification"
+    mode = "regression"
     learning_rates = [0.00001, 0.0001, 0.001, 0.01]
 
     lmbdas = [0.0, 0.001, 0.1, 1.0]
@@ -287,6 +285,7 @@ def eval_ffnn():
                     ac,
                     mini_batch_size,
                     lmb,
+                    mode,
                 )
                 losses = ffnn.train_network()
                 z_pred_train = ffnn.predict(X_train)
@@ -348,6 +347,8 @@ def eval_ffnn():
 
 
 def eval_classification_ffnn():
+    from sklearn.metrics import accuracy_score
+
     # malignant[0], benign[1], positive indicates cancer.
     from sklearn.datasets import load_breast_cancer
 
@@ -356,15 +357,21 @@ def eval_classification_ffnn():
     X = data.data
     y = data.target.reshape(-1, 1)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
+    # print("Shape of X_train:", X_train.shape)
+    # print("Shape of X_test:", X_test.shape)
+    # print("Shape of y_train:", y_train.shape)
+    # print("Shape of y_test:", y_test.shape)
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
 
-    layer_sizes = [X_train.shape[1], 32, 16, 1]
+    layer_sizes = [30, 32, 16, 1]
 
-    epochs = 1000
+    epochs = 100
     mini_batch_size = 10
 
     nn = FeedForwardNeuralNetwork(
@@ -377,10 +384,15 @@ def eval_classification_ffnn():
         mini_batch_size,
         mode="classification",
     )
+    nn.train_network()
 
-    loss = nn.train_network()
+    pred = nn.predict(X_test)
+    y_true = y_test
 
-    print("Training complete, final loss , " + str(loss[-1]))
+    accuracy = accuracy_score(y_true, pred)
+    print(f"Accuracy: {accuracy}")
+
+    print("Training complete")
 
 
 def generate_data():
@@ -410,42 +422,48 @@ def generate_data():
 
 if __name__ == "__main__":
 
-    eval_classification_ffnn()
-    # compare
-    # X_train, X_test, z_train, z_test, scaler_Z = generate_data()
-    # ols_res = ols_regression()
-    # ridge_res = ridge_regression()
-    # ffnn_res = eval_ffnn()
+    input = sys.argv[1]
+    print(input)
+    if input == "reg":
+        X_train, X_test, z_train, z_test, scaler_Z = generate_data()
+        ols_res = ols_regression()
+        ridge_res = ridge_regression()
+        ffnn_res = eval_ffnn()
 
-    # print(f"OLS: {ols_res}")
-    # print(f"Ridge: {ridge_res}")
-    # param_grid = {
-    #     "learning_rate_init": [0.0001, 0.001, 0.01, 0.1],
-    #     "alpha": [1e-6, 1e-4, 1e-2, 1e-1],
-    # }
-    # # comparing on the sci-kit learn implementation.
-    # mlp = MLPRegressor(
-    #     hidden_layer_sizes=(5, 5),
-    #     activation="logistic",
-    #     max_iter=1000,
-    #     random_state=42,
-    # )
-    # # Perform Grid Search
-    # grid_search = GridSearchCV(mlp, param_grid, scoring="neg_mean_squared_error", cv=5)
-    # grid_search.fit(X_train, z_train)
+        print(f"OLS: {ols_res}")
+        print(f"Ridge: {ridge_res}")
+        param_grid = {
+            "learning_rate_init": [0.0001, 0.001, 0.01, 0.1],
+            "alpha": [1e-6, 1e-4, 1e-2, 1e-1],
+        }
+        # comparing on the sci-kit learn implementation.
+        mlp = MLPRegressor(
+            hidden_layer_sizes=(5, 5),
+            activation="logistic",
+            max_iter=1000,
+            random_state=42,
+        )
+        # Perform Grid Search
+        grid_search = GridSearchCV(
+            mlp, param_grid, scoring="neg_mean_squared_error", cv=5
+        )
+        grid_search.fit(X_train, z_train)
 
-    # # Get the best parameters
-    # print("Best parameters found: ", grid_search.best_params_)
+        # Get the best parameters
+        print("Best parameters found: ", grid_search.best_params_)
 
-    # y_pred_test = grid_search.best_estimator_.predict(X_test)
-    # y_pred_train = grid_search.best_estimator_.predict(X_train)
+        y_pred_test = grid_search.best_estimator_.predict(X_test)
+        y_pred_train = grid_search.best_estimator_.predict(X_train)
 
-    # mse_train = mean_squared_error(z_train, y_pred_train)
-    # r2_train = r2_score(z_train, y_pred_train)
+        mse_train = mean_squared_error(z_train, y_pred_train)
+        r2_train = r2_score(z_train, y_pred_train)
 
-    # mse_test = mean_squared_error(z_test, y_pred_test)
-    # r2_test = r2_score(z_test, y_pred_test)
+        mse_test = mean_squared_error(z_test, y_pred_test)
+        r2_test = r2_score(z_test, y_pred_test)
 
-    # print(
-    #     f"Test MSE: {mse_test}, Test R2: {r2_test}, Train MSE: {mse_train}, Train R2: {r2_train}"
-    # )
+        print(
+            f"Test MSE: {mse_test}, Test R2: {r2_test}, Train MSE: {mse_train}, Train R2: {r2_train}"
+        )
+    elif input == "class":
+        eval_classification_ffnn()
+        print("Classification task completed.")
