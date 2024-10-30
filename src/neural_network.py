@@ -103,6 +103,8 @@ class FeedForwardNeuralNetwork:
         return self.sigmoid(z) * (1 - self.sigmoid(z))
 
     def cost_classification(self, y_true, y_pred):
+        epsilon = 1e-12  # A small value to prevent log(0)
+        y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
         return -np.mean(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred))
 
     # MSE as it is a function typically used for regression tasks.
@@ -161,10 +163,13 @@ class FeedForwardNeuralNetwork:
         db = [np.zeros(b.shape) for b in self.biases]
         m = current_batch_size  # number of samples.
 
-        delta = y_pred - y_true
+        if self.mode == "classification":
+            delta = (y_pred - y_true) / m
+        else:
+            delta = y_pred - y_true
 
-        dW_final = np.dot(delta, activations[-2].T) / m
-        db_final = np.sum(delta, axis=1, keepdims=True) / m
+        dW_final = np.dot(delta, activations[-2].T)
+        db_final = np.sum(delta, axis=1, keepdims=True)
 
         dW[-1] = dW_final + (self.lmb / m) * self.weights[-1]
         db[-1] = db_final
@@ -174,8 +179,8 @@ class FeedForwardNeuralNetwork:
                 zs[l]
             )
 
-            dW[l] = np.dot(delta, activations[l - 1].T) / m
-            db[l] = np.sum(delta, axis=1, keepdims=True) / m
+            dW[l] = np.dot(delta, activations[l - 1].T)
+            db[l] = np.sum(delta, axis=1, keepdims=True)
         return dW, db
 
     def update_params(self, dW, db):
@@ -185,10 +190,13 @@ class FeedForwardNeuralNetwork:
         :param db: gradients for the biases
         :param learning_rate: learning rate for the optimizer
         """
+        m = len(dW[0])
         self.weights = [
-            W - self.learning_rate * dWi for W, dWi in zip(self.weights, dW)
+            W - self.learning_rate * (dWi / m) for W, dWi in zip(self.weights, dW)
         ]
-        self.biases = [b - self.learning_rate * dbi for b, dbi in zip(self.biases, db)]
+        self.biases = [
+            b - self.learning_rate * (dbi / m) for b, dbi in zip(self.biases, db)
+        ]
 
     def train_network(self):
         """
@@ -228,14 +236,13 @@ class FeedForwardNeuralNetwork:
 
             epoch_loss /= num_samples / self.batch_size
             losses.append(epoch_loss)
-            print(f"Epoch {epoch+1}/{self.epochs}, Loss: {epoch_loss:.6f}")
+            # print(f"Epoch {epoch+1}/{self.epochs}, Loss: {epoch_loss:.6f}")
         return losses
 
     def predict(self, X):
         # Transpose the input to match the expected shape
         x_batch = X.T  # Shape (n_features, num_samples)
 
-        # Get the predictions from the feedforward process
         output, _, _ = self.feed_forward(x_batch)
 
         if self.mode == "classification":
@@ -340,7 +347,7 @@ def eval_ffnn():
         plt.xlabel("Learning Rate")
         plt.ylabel("Lambda (Regularization)")
     plt.tight_layout()
-    save_plot("ffnn_mse_heatmap_various_activations")
+    save_plot("ffnn_mse_heatmap_various_activations_test")
     plt.show()
 
     return results, best_params
@@ -360,39 +367,37 @@ def eval_classification_ffnn():
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
-
-    # print("Shape of X_train:", X_train.shape)
-    # print("Shape of X_test:", X_test.shape)
-    # print("Shape of y_train:", y_train.shape)
-    # print("Shape of y_test:", y_test.shape)
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
 
     layer_sizes = [30, 32, 16, 1]
+    learning_rates = [0.0001, 0.001, 0.01, 0.1]
 
-    epochs = 100
+    epochs = 1000
     mini_batch_size = 10
+    for lr in learning_rates:
 
-    nn = FeedForwardNeuralNetwork(
-        X_train,
-        y_train,
-        layer_sizes,
-        epochs,
-        0.01,
-        "sigmoid",
-        mini_batch_size,
-        mode="classification",
-    )
-    nn.train_network()
+        nn = FeedForwardNeuralNetwork(
+            X_train,
+            y_train,
+            layer_sizes,
+            epochs,
+            lr,
+            "sigmoid",
+            mini_batch_size,
+            mode="classification",
+        )
+        nn.train_network()
 
-    pred = nn.predict(X_test)
-    y_true = y_test
+        pred = nn.predict(X_test)
+        y_true = y_test
 
-    accuracy = accuracy_score(y_true, pred)
-    print(f"Accuracy: {accuracy}")
+        accuracy = accuracy_score(y_true, pred)
+        print(f"Accuracy: {accuracy}, Learning rate: {lr}")
 
-    print("Training complete")
+        print(f"Training complete for learning rate {lr} ")
+        print("-------------------------------------------------")
 
 
 def generate_data():
