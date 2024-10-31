@@ -14,8 +14,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import GridSearchCV, train_test_split
 import numpy as np
-from methods import franke_function, save_plot
-from project1_methods import ols_regression, ridge_regression
+from project1_methods import (
+    ols_regression,
+    ridge_regression,
+    franke_function,
+    save_plot,
+)
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 import pandas as pd
@@ -475,7 +479,7 @@ def plot_ols(res):
 
 
 def plot_ridge(result):
-    lambda_to_plot = 0.01  # Choose the lambda value you want to visualize
+    lambda_to_plot = 0.1  # Choose the lambda value you want to visualize
 
     plt.figure(figsize=(12, 5))
 
@@ -529,7 +533,6 @@ if __name__ == "__main__":
     input = sys.argv[1]
     print(input)
     if input == "reg":
-        X_train, X_test, z_train, z_test, scaler_Z = generate_data()
         ols_res = ols_regression()
         plot_ols(ols_res)
 
@@ -538,8 +541,7 @@ if __name__ == "__main__":
 
         ffnn_res = eval_ffnn()
 
-        # print(f"OLS: {ols_res}")
-        # print(f"Ridge: {ridge_res}")
+        X_train, X_test, z_train, z_test, scaler_Z = generate_data()
         param_grid = {
             "learning_rate_init": [0.0001, 0.001, 0.01, 0.1],
             "alpha": [1e-6, 1e-4, 1e-2, 1e-1],
