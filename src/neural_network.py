@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import GridSearchCV, train_test_split
 import numpy as np
-from project1_methods import (
+from methods import (
     ols_regression,
     ridge_regression,
     franke_function,
