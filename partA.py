@@ -232,45 +232,38 @@ if 3 in SHOULD_RUN:
 
     for epoch in epochs:
         for mb in mb_sizes:
-            for lr in learning_rates:
-                beta_OLS_gd, iterations_before_convergence_ols, epoch_ols, mse = (
-                    sgd_ols(
-                        x_train,
-                        y_train,
-                        learning_rate=lr,
-                        epochs=epoch,
-                        mb_size=mb,
-                    )
+            beta_OLS_gd, iterations_before_convergence_ols, epoch_ols, mse = sgd_ols(
+                x_train,
+                y_train,
+                epochs=epoch,
+                mb_size=mb,
+            )
+            ols_parameters.parameter_comparison(
+                convergence=iterations_before_convergence_ols,
+                epoch=epoch_ols,
+                mb_size=mb,
+                mse=mse,
+            )
+            for lmb in lambdas:
+                (
+                    beta_ridge_gd,
+                    iterations_before_convergence_ridge,
+                    epoch_ridge,
+                    mse,
+                ) = sgd_ridge(
+                    x_train,
+                    y_train,
+                    lmb,
+                    epochs=epoch,
+                    mb_size=mb,
                 )
-                ols_parameters.parameter_comparison(
-                    convergence=iterations_before_convergence_ols,
-                    lr=lr,
-                    epoch=epoch_ols,
+                ridge_parameters.parameter_comparison(
+                    convergence=iterations_before_convergence_ridge,
+                    epoch=epoch_ridge,
                     mb_size=mb,
                     mse=mse,
+                    lmb=lmb,
                 )
-                for lmb in lambdas:
-                    (
-                        beta_ridge_gd,
-                        iterations_before_convergence_ridge,
-                        epoch_ridge,
-                        mse,
-                    ) = sgd_ridge(
-                        x_train,
-                        y_train,
-                        lmb,
-                        learning_rate=lr,
-                        epochs=epoch,
-                        mb_size=mb,
-                    )
-                    ridge_parameters.parameter_comparison(
-                        convergence=iterations_before_convergence_ridge,
-                        lr=lr,
-                        epoch=epoch_ridge,
-                        mb_size=mb,
-                        mse=mse,
-                        lmb=lmb,
-                    )
     print("Optimal parameters")
     ols_parameters.print_optimal_parameters("OLS")
     print(
@@ -303,47 +296,42 @@ if 3.5 in SHOULD_RUN:
     for epoch in epochs:
         for mb in mb_sizes:
             for mom in momentum:
-                for lr in learning_rates:
-                    beta_OLS_gd, iterations_before_convergence_ols, epoch_ols, mse = (
-                        sgd_momentum_ols(
-                            x_train,
-                            y_train,
-                            learning_rate=lr,
-                            epochs=epoch,
-                            mb_size=mb,
-                            momentum=mom,
-                        )
+                beta_OLS_gd, iterations_before_convergence_ols, epoch_ols, mse = (
+                    sgd_momentum_ols(
+                        x_train,
+                        y_train,
+                        epochs=epoch,
+                        mb_size=mb,
+                        momentum=mom,
                     )
-                    ols_parameters.parameter_comparison(
-                        convergence=iterations_before_convergence_ols,
-                        lr=lr,
-                        epoch=epoch_ols,
+                )
+                ols_parameters.parameter_comparison(
+                    convergence=iterations_before_convergence_ols,
+                    epoch=epoch_ols,
+                    mb_size=mb,
+                    mse=mse,
+                )
+                for lmb in lambdas:
+                    (
+                        beta_ridge_gd,
+                        iterations_before_convergence_ridge,
+                        epoch_ridge,
+                        mse,
+                    ) = sgd_momentum_ridge(
+                        x_train,
+                        y_train,
+                        lmb,
+                        epochs=epoch,
+                        mb_size=mb,
+                        momentum=mom,
+                    )
+                    ridge_parameters.parameter_comparison(
+                        convergence=iterations_before_convergence_ridge,
+                        epoch=epoch_ridge,
                         mb_size=mb,
                         mse=mse,
+                        lmb=lmb,
                     )
-                    for lmb in lambdas:
-                        (
-                            beta_ridge_gd,
-                            iterations_before_convergence_ridge,
-                            epoch_ridge,
-                            mse,
-                        ) = sgd_momentum_ridge(
-                            x_train,
-                            y_train,
-                            lmb,
-                            learning_rate=lr,
-                            epochs=epoch,
-                            mb_size=mb,
-                            momentum=mom,
-                        )
-                        ridge_parameters.parameter_comparison(
-                            convergence=iterations_before_convergence_ridge,
-                            lr=lr,
-                            epoch=epoch_ridge,
-                            mb_size=mb,
-                            mse=mse,
-                            lmb=lmb,
-                        )
     print("Optimal parameters")
     ols_parameters.print_optimal_parameters("OLS")
     print(
