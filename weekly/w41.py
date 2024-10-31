@@ -2,7 +2,7 @@ import os, sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from methods import (
+from gradient_methods import (
     gradient_descent_ols,
     gradient_descent_ridge,
     gradient_descent_momentum_ols,
