@@ -1,8 +1,7 @@
-import os
-import matplotlib.pyplot as plt
 import numpy as np
 from autograd import grad
 import autograd.numpy as anp
+from global_values import USE_GRAD
 
 
 def CostOLS(beta, X, y):
@@ -14,16 +13,16 @@ def CostRidge(beta, X, y, lmd):
     return anp.sum((y - X @ beta) ** 2) / m + (lmd / (2 * m)) * anp.sum(beta**2)
 
 
-def gradient_descent_ols(X, y, learning_rate, iterations, use_grad, tolerance=1e-6):
-    if use_grad:
+def gradient_descent_ols(X, y, learning_rate, iterations, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     beta = np.zeros((n, 1))
     prev_loss = float("inf")
     for i in range(iterations):
         y_pred = X @ beta
-        if use_grad:
-            gradient = training_gradient(beta, X, y)
+        if USE_GRAD:
+            gradient = (1 / m) * training_gradient(beta, X, y)
         else:
             gradient = (1 / m) * X.T @ (y_pred - y)
         beta -= learning_rate * gradient
@@ -31,24 +30,22 @@ def gradient_descent_ols(X, y, learning_rate, iterations, use_grad, tolerance=1e
         mse = (1 / (2 * m)) * np.sum((y_pred - y) ** 2)
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
-def gradient_descent_ridge(
-    X, y, lmd, learning_rate, iterations, use_grad, tolerance=1e-6
-):
-    if use_grad:
+def gradient_descent_ridge(X, y, lmd, learning_rate, iterations, tolerance=1e-6):
+    if USE_GRAD:
         training_descent = grad(CostRidge)
     m, n = X.shape
     beta = np.zeros((n, 1))
     prev_loss = float("inf")
     for i in range(iterations):
         y_pred = X @ beta
-        if use_grad:
-            gradient = training_descent(beta, X, y, lmd)
+        if USE_GRAD:
+            gradient = (1 / m) * training_descent(beta, X, y, lmd)
         else:
             gradient = (1 / m) * (X.T @ (y_pred - y) + lmd * beta)
         beta -= learning_rate * gradient
@@ -58,16 +55,16 @@ def gradient_descent_ridge(
         )
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
 def gradient_descent_momentum_ols(
-    X, y, learning_rate, iterations, momentum, use_grad, tolerance=1e-6
+    X, y, learning_rate, iterations, momentum, tolerance=1e-6
 ):
-    if use_grad:
+    if USE_GRAD:
         training_descent = grad(CostOLS)
     m, n = X.shape
     beta = np.zeros((n, 1))
@@ -76,8 +73,8 @@ def gradient_descent_momentum_ols(
 
     for i in range(iterations):
         y_pred = X @ beta
-        if use_grad:
-            gradient = training_descent(beta, X, y)
+        if USE_GRAD:
+            gradient = (1 / m) * training_descent(beta, X, y)
         else:
             gradient = (1 / m) * X.T @ (y_pred - y)
         velocity = momentum * velocity - learning_rate * gradient
@@ -86,16 +83,16 @@ def gradient_descent_momentum_ols(
         mse = (1 / (2 * m)) * np.sum((y_pred - y) ** 2)
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
 def gradient_descent_momentum_ridge(
-    X, y, lmd, learning_rate, iterations, momentum, use_grad, tolerance=1e-6
+    X, y, lmd, learning_rate, iterations, momentum, tolerance=1e-6
 ):
-    if use_grad:
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     beta = np.zeros((n, 1))
@@ -104,8 +101,8 @@ def gradient_descent_momentum_ridge(
 
     for i in range(iterations):
         y_pred = X @ beta
-        if use_grad:
-            gradient = training_gradient(beta, X, y, lmd)
+        if USE_GRAD:
+            gradient = (1 / m) * training_gradient(beta, X, y, lmd)
         else:
             gradient = (1 / m) * (X.T @ (y_pred - y) + lmd * beta)
         velocity = momentum * velocity - learning_rate * gradient
@@ -116,14 +113,14 @@ def gradient_descent_momentum_ridge(
         )
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
-def sgd_ols(X, y, learning_rate, epochs, mb_size, use_grad, tolerance=1e-6):
-    if use_grad:
+def sgd_ols(X, y, learning_rate, epochs, mb_size, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -136,8 +133,8 @@ def sgd_ols(X, y, learning_rate, epochs, mb_size, use_grad, tolerance=1e-6):
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradient = training_gradient(beta, X, y)
+            if USE_GRAD:
+                gradient = (1 / mb_size) * training_gradient(beta, Xi, yi)
             else:
                 gradient = (1 / mb_size) * Xi.T @ (y_pred - yi)
             beta -= learning_rate * gradient
@@ -145,14 +142,14 @@ def sgd_ols(X, y, learning_rate, epochs, mb_size, use_grad, tolerance=1e-6):
             mse = (1 / (2 * m)) * np.sum((y_pred - yi) ** 2)
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
-def sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, use_grad, tolerance=1e-6):
-    if use_grad:
+def sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -165,8 +162,8 @@ def sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, use_grad, tolerance=1e-
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradient = training_gradient(beta, X, y, lmd)
+            if USE_GRAD:
+                gradient = (1 / mb_size) * training_gradient(beta, Xi, yi, lmd)
             else:
                 gradient = (1 / mb_size) * (Xi.T @ (y_pred - yi) + lmd * beta)
             beta -= learning_rate * gradient
@@ -176,16 +173,14 @@ def sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, use_grad, tolerance=1e-
             )
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
-def sgd_momentum_ols(
-    X, y, learning_rate, epochs, mb_size, momentum, use_grad, tolerance=1e-6
-):
-    if use_grad:
+def sgd_momentum_ols(X, y, learning_rate, epochs, mb_size, momentum, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -199,8 +194,8 @@ def sgd_momentum_ols(
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradient = training_gradient(beta, X, y)
+            if USE_GRAD:
+                gradient = (1 / mb_size) * training_gradient(beta, Xi, yi)
             else:
                 gradient = (1 / mb_size) * Xi.T @ (y_pred - yi)
             velocity = momentum * velocity - learning_rate * gradient
@@ -209,16 +204,16 @@ def sgd_momentum_ols(
             mse = (1 / (2 * m)) * np.sum((y_pred - yi) ** 2)
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
 def sgd_momentum_ridge(
-    X, y, lmd, learning_rate, epochs, mb_size, momentum, use_grad, tolerance=1e-6
+    X, y, lmd, learning_rate, epochs, mb_size, momentum, tolerance=1e-6
 ):
-    if use_grad:
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -232,8 +227,8 @@ def sgd_momentum_ridge(
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradient = training_gradient(beta, X, y, lmd)
+            if USE_GRAD:
+                gradient = (1 / mb_size) * training_gradient(beta, Xi, yi, lmd)
             else:
                 gradient = (1 / mb_size) * (Xi.T @ (y_pred - yi) + lmd * beta)
             velocity = momentum * velocity - learning_rate * gradient
@@ -244,14 +239,14 @@ def sgd_momentum_ridge(
             )
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
-def adagrad_pgd_ols(X, y, learning_rate, iterations, use_grad, tolerance=1e-6):
-    if use_grad:
+def adagrad_pgd_ols(X, y, learning_rate, iterations, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     beta = anp.zeros((n, 1))
@@ -262,7 +257,7 @@ def adagrad_pgd_ols(X, y, learning_rate, iterations, use_grad, tolerance=1e-6):
 
     for i in range(iterations):
         y_pred = X @ beta
-        if use_grad:
+        if USE_GRAD:
             gradients = (1.0 / m) * training_gradient(beta, X, y)
         else:
             gradients = (1.0 / m) * X.T @ (y_pred - y)
@@ -273,14 +268,14 @@ def adagrad_pgd_ols(X, y, learning_rate, iterations, use_grad, tolerance=1e-6):
         mse = (1 / (2 * m)) * anp.sum((y_pred - y) ** 2)
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
-def adagrad_pgd_ridge(X, y, lmd, learning_rate, iterations, use_grad, tolerance=1e-6):
-    if use_grad:
+def adagrad_pgd_ridge(X, y, lmd, learning_rate, iterations, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     beta = anp.zeros((n, 1))
@@ -291,7 +286,7 @@ def adagrad_pgd_ridge(X, y, lmd, learning_rate, iterations, use_grad, tolerance=
 
     for i in range(iterations):
         y_pred = X @ beta
-        if use_grad:
+        if USE_GRAD:
             gradients = (1.0 / m) * training_gradient(beta, X, y, lmd)
         else:
             gradients = (1.0 / m) * (X.T @ (y_pred - y) + lmd * beta)
@@ -302,16 +297,14 @@ def adagrad_pgd_ridge(X, y, lmd, learning_rate, iterations, use_grad, tolerance=
         mse = (1 / (2 * m)) * anp.sum((y_pred - y) ** 2)
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
-def adagrad_gdm_ols(
-    X, y, learning_rate, iterations, momentum, use_grad, tolerance=1e-6
-):
-    if use_grad:
+def adagrad_gdm_ols(X, y, learning_rate, iterations, momentum, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     beta = anp.zeros((n, 1))
@@ -323,7 +316,7 @@ def adagrad_gdm_ols(
 
     for i in range(iterations):
         y_pred = X @ beta
-        if use_grad:
+        if USE_GRAD:
             gradients = (1.0 / m) * training_gradient(beta, X, y)
         else:
             gradients = (1.0 / m) * X.T @ (y_pred - y)
@@ -335,16 +328,14 @@ def adagrad_gdm_ols(
         mse = (1 / (2 * m)) * anp.sum((y_pred - y) ** 2)
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
-def adagrad_gdm_ridge(
-    X, y, lmd, learning_rate, iterations, momentum, use_grad, tolerance=1e-6
-):
-    if use_grad:
+def adagrad_gdm_ridge(X, y, lmd, learning_rate, iterations, momentum, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     beta = anp.zeros((n, 1))
@@ -356,7 +347,7 @@ def adagrad_gdm_ridge(
 
     for i in range(iterations):
         y_pred = X @ beta
-        if use_grad:
+        if USE_GRAD:
             gradients = (1.0 / m) * training_gradient(beta, X, y, lmd)
         else:
             gradients = (1.0 / m) * (X.T @ (y_pred - y) + lmd * beta)
@@ -368,14 +359,14 @@ def adagrad_gdm_ridge(
         mse = (1 / (2 * m)) * anp.sum((y_pred - y) ** 2)
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
-def adagrad_sgd_ols(X, y, learning_rate, epochs, mb_size, use_grad, tolerance=1e-6):
-    if use_grad:
+def adagrad_sgd_ols(X, y, learning_rate, epochs, mb_size, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -391,10 +382,10 @@ def adagrad_sgd_ols(X, y, learning_rate, epochs, mb_size, use_grad, tolerance=1e
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradients = (1.0 / m) * training_gradient(beta, X, y)
+            if USE_GRAD:
+                gradients = (1.0 / m) * training_gradient(beta, Xi, yi)
             else:
-                gradients = (1.0 / m) * X.T @ (y_pred - y)
+                gradients = (1.0 / m) * Xi.T @ (y_pred - yi)
             Giter = rho * Giter + (1 - rho) * gradients * gradients
             update = gradients * learning_rate / (delta + anp.sqrt(Giter))
             beta -= update
@@ -402,16 +393,14 @@ def adagrad_sgd_ols(X, y, learning_rate, epochs, mb_size, use_grad, tolerance=1e
             mse = (1 / (2 * m)) * np.sum((y_pred - yi) ** 2)
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
-def adagrad_sgd_ridge(
-    X, y, lmd, learning_rate, epochs, mb_size, use_grad, tolerance=1e-6
-):
-    if use_grad:
+def adagrad_sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -426,10 +415,10 @@ def adagrad_sgd_ridge(
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradients = (1.0 / m) * training_gradient(beta, X, y, lmd)
+            if USE_GRAD:
+                gradients = (1.0 / m) * training_gradient(beta, Xi, yi, lmd)
             else:
-                gradients = (1.0 / m) * (X.T @ (y_pred - y) + lmd * beta)
+                gradients = (1.0 / m) * (Xi.T @ (y_pred - yi) + lmd * beta)
             Giter = rho * Giter + (1 - rho) * gradients * gradients
             update = gradients * learning_rate / (delta + anp.sqrt(Giter))
             beta -= update
@@ -439,16 +428,16 @@ def adagrad_sgd_ridge(
             )
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
 def adagrad_sgd_momentum_ols(
-    X, y, learning_rate, epochs, mb_size, momentum, use_grad, tolerance=1e-6
+    X, y, learning_rate, epochs, mb_size, momentum, tolerance=1e-6
 ):
-    if use_grad:
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -465,10 +454,10 @@ def adagrad_sgd_momentum_ols(
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradients = (1.0 / m) * training_gradient(beta, X, y)
+            if USE_GRAD:
+                gradients = (1.0 / m) * training_gradient(beta, Xi, yi)
             else:
-                gradients = (1.0 / m) * X.T @ (y_pred - y)
+                gradients = (1.0 / m) * Xi.T @ (y_pred - yi)
             Giter = rho * Giter + (1 - rho) * gradients * gradients
             update = gradients * learning_rate / (delta + anp.sqrt(Giter))
             prev_beta = momentum * prev_beta + update
@@ -477,16 +466,16 @@ def adagrad_sgd_momentum_ols(
             mse = (1 / (2 * m)) * np.sum((y_pred - yi) ** 2)
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
 def adagrad_sgd_momentum_ridge(
-    X, y, lmd, learning_rate, epochs, mb_size, momentum, use_grad, tolerance=1e-6
+    X, y, lmd, learning_rate, epochs, mb_size, momentum, tolerance=1e-6
 ):
-    if use_grad:
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -503,10 +492,10 @@ def adagrad_sgd_momentum_ridge(
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradients = (1.0 / m) * training_gradient(beta, X, y, lmd)
+            if USE_GRAD:
+                gradients = (1.0 / m) * training_gradient(beta, Xi, yi, lmd)
             else:
-                gradients = (1.0 / m) * (X.T @ (y_pred - y) + lmd * beta)
+                gradients = (1.0 / m) * (Xi.T @ (y_pred - yi) + lmd * beta)
             Giter = rho * Giter + (1 - rho) * gradients * gradients
             update = gradients * learning_rate / (delta + anp.sqrt(Giter))
             prev_beta = momentum * prev_beta + update
@@ -517,14 +506,14 @@ def adagrad_sgd_momentum_ridge(
             )
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
-def rms_pgd_ols(X, y, learning_rate, iterations, use_grad, tolerance=1e-6):
-    if use_grad:
+def rms_pgd_ols(X, y, learning_rate, iterations, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     beta = anp.zeros((n, 1))
@@ -535,7 +524,7 @@ def rms_pgd_ols(X, y, learning_rate, iterations, use_grad, tolerance=1e-6):
 
     for i in range(iterations):
         y_pred = X @ beta
-        if use_grad:
+        if USE_GRAD:
             gradients = (1.0 / m) * training_gradient(beta, X, y)
         else:
             gradients = (1.0 / m) * X.T @ (y_pred - y)
@@ -546,14 +535,14 @@ def rms_pgd_ols(X, y, learning_rate, iterations, use_grad, tolerance=1e-6):
         mse = (1 / (2 * m)) * anp.sum((y_pred - y) ** 2)
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
-def rms_pgd_ridge(X, y, lmd, learning_rate, iterations, use_grad, tolerance=1e-6):
-    if use_grad:
+def rms_pgd_ridge(X, y, lmd, learning_rate, iterations, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     beta = anp.zeros((n, 1))
@@ -564,7 +553,7 @@ def rms_pgd_ridge(X, y, lmd, learning_rate, iterations, use_grad, tolerance=1e-6
 
     for i in range(iterations):
         y_pred = X @ beta
-        if use_grad:
+        if USE_GRAD:
             gradients = (1.0 / m) * training_gradient(beta, X, y, lmd)
         else:
             gradients = (1.0 / m) * (X.T @ (y_pred - y) + lmd * beta)
@@ -575,14 +564,14 @@ def rms_pgd_ridge(X, y, lmd, learning_rate, iterations, use_grad, tolerance=1e-6
         mse = (1 / (2 * m)) * anp.sum((y_pred - y) ** 2)
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
-def rms_gdm_ols(X, y, learning_rate, iterations, momentum, use_grad, tolerance=1e-6):
-    if use_grad:
+def rms_gdm_ols(X, y, learning_rate, iterations, momentum, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     beta = anp.zeros((n, 1))
@@ -594,7 +583,7 @@ def rms_gdm_ols(X, y, learning_rate, iterations, momentum, use_grad, tolerance=1
 
     for i in range(iterations):
         y_pred = X @ beta
-        if use_grad:
+        if USE_GRAD:
             gradients = (1.0 / m) * training_gradient(beta, X, y)
         else:
             gradients = (1.0 / m) * X.T @ (y_pred - y)
@@ -606,16 +595,14 @@ def rms_gdm_ols(X, y, learning_rate, iterations, momentum, use_grad, tolerance=1
         mse = (1 / (2 * m)) * anp.sum((y_pred - y) ** 2)
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
-def rms_gdm_ridge(
-    X, y, lmd, learning_rate, iterations, momentum, use_grad, tolerance=1e-6
-):
-    if use_grad:
+def rms_gdm_ridge(X, y, lmd, learning_rate, iterations, momentum, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     beta = anp.zeros((n, 1))
@@ -627,7 +614,7 @@ def rms_gdm_ridge(
 
     for i in range(iterations):
         y_pred = X @ beta
-        if use_grad:
+        if USE_GRAD:
             gradients = (1.0 / m) * training_gradient(beta, X, y, lmd)
         else:
             gradients = (1.0 / m) * (X.T @ (y_pred - y) + lmd * beta)
@@ -639,14 +626,14 @@ def rms_gdm_ridge(
         mse = (1 / (2 * m)) * anp.sum((y_pred - y) ** 2)
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
-def rms_sgd_ols(X, y, learning_rate, epochs, mb_size, use_grad, tolerance=1e-6):
-    if use_grad:
+def rms_sgd_ols(X, y, learning_rate, epochs, mb_size, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -662,10 +649,10 @@ def rms_sgd_ols(X, y, learning_rate, epochs, mb_size, use_grad, tolerance=1e-6):
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradients = (1.0 / m) * training_gradient(beta, X, y)
+            if USE_GRAD:
+                gradients = (1.0 / m) * training_gradient(beta, Xi, yi)
             else:
-                gradients = (1.0 / m) * X.T @ (y_pred - y)
+                gradients = (1.0 / m) * Xi.T @ (y_pred - yi)
             Giter = rho * Giter + (1 - rho) * anp.square(gradients)
             update = gradients * learning_rate / (delta + anp.sqrt(Giter))
             beta -= update
@@ -673,14 +660,14 @@ def rms_sgd_ols(X, y, learning_rate, epochs, mb_size, use_grad, tolerance=1e-6):
             mse = (1 / (2 * m)) * np.sum((y_pred - yi) ** 2)
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
-def rms_sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, use_grad, tolerance=1e-6):
-    if use_grad:
+def rms_sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -695,10 +682,10 @@ def rms_sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, use_grad, tolerance
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradients = (1.0 / m) * training_gradient(beta, X, y, lmd)
+            if USE_GRAD:
+                gradients = (1.0 / m) * training_gradient(beta, Xi, yi, lmd)
             else:
-                gradients = (1.0 / m) * (X.T @ (y_pred - y) + lmd * beta)
+                gradients = (1.0 / m) * (Xi.T @ (y_pred - yi) + lmd * beta)
             Giter = rho * Giter + (1 - rho) * anp.square(gradients)
             update = gradients * learning_rate / (delta + anp.sqrt(Giter))
             beta -= update
@@ -708,16 +695,16 @@ def rms_sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, use_grad, tolerance
             )
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
 def rms_sgd_momentum_ols(
-    X, y, learning_rate, epochs, mb_size, momentum, use_grad, tolerance=1e-6
+    X, y, learning_rate, epochs, mb_size, momentum, tolerance=1e-6
 ):
-    if use_grad:
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -735,10 +722,10 @@ def rms_sgd_momentum_ols(
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradients = (1.0 / m) * training_gradient(beta, X, y)
+            if USE_GRAD:
+                gradients = (1.0 / m) * training_gradient(beta, Xi, yi)
             else:
-                gradients = (1.0 / m) * X.T @ (y_pred - y)
+                gradients = (1.0 / m) * Xi.T @ (y_pred - yi)
             Giter = rho * Giter + (1 - rho) * anp.square(gradients)
             update = gradients * learning_rate / (delta + anp.sqrt(Giter))
             prev_beta = momentum * prev_beta + update
@@ -747,16 +734,16 @@ def rms_sgd_momentum_ols(
             mse = (1 / (2 * m)) * np.sum((y_pred - yi) ** 2)
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
 def rms_sgd_momentum_ridge(
-    X, y, lmd, learning_rate, epochs, mb_size, momentum, use_grad, tolerance=1e-6
+    X, y, lmd, learning_rate, epochs, mb_size, momentum, tolerance=1e-6
 ):
-    if use_grad:
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -774,10 +761,10 @@ def rms_sgd_momentum_ridge(
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradients = (1.0 / m) * training_gradient(beta, X, y, lmd)
+            if USE_GRAD:
+                gradients = (1.0 / m) * training_gradient(beta, Xi, yi, lmd)
             else:
-                gradients = (1.0 / m) * (X.T @ (y_pred - y) + lmd * beta)
+                gradients = (1.0 / m) * (Xi.T @ (y_pred - yi) + lmd * beta)
             Giter = rho * Giter + (1 - rho) * anp.square(gradients)
             update = gradients * learning_rate / (delta + anp.sqrt(Giter))
             prev_beta = momentum * prev_beta + update
@@ -788,14 +775,14 @@ def rms_sgd_momentum_ridge(
             )
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
-def adam_pgd_ols(X, y, learning_rate, iterations, use_grad, tolerance=1e-6):
-    if use_grad:
+def adam_pgd_ols(X, y, learning_rate, iterations, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     beta = anp.zeros((n, 1))
@@ -808,7 +795,7 @@ def adam_pgd_ols(X, y, learning_rate, iterations, use_grad, tolerance=1e-6):
 
     for i in range(1, iterations + 1):
         y_pred = X @ beta
-        if use_grad:
+        if USE_GRAD:
             gradients = (1.0 / m) * training_gradient(beta, X, y)
         else:
             gradients = (1.0 / m) * X.T @ (y_pred - y)
@@ -822,14 +809,14 @@ def adam_pgd_ols(X, y, learning_rate, iterations, use_grad, tolerance=1e-6):
         mse = (1 / (2 * m)) * anp.sum((y_pred - y) ** 2)
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
-def adam_pgd_ridge(X, y, lmd, learning_rate, iterations, use_grad, tolerance=1e-6):
-    if use_grad:
+def adam_pgd_ridge(X, y, lmd, learning_rate, iterations, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     beta = anp.zeros((n, 1))
@@ -842,7 +829,7 @@ def adam_pgd_ridge(X, y, lmd, learning_rate, iterations, use_grad, tolerance=1e-
 
     for i in range(1, iterations + 1):
         y_pred = X @ beta
-        if use_grad:
+        if USE_GRAD:
             gradients = (1.0 / m) * training_gradient(beta, X, y, lmd)
         else:
             gradients = (1.0 / m) * (X.T @ (y_pred - y) + lmd * beta)
@@ -856,14 +843,14 @@ def adam_pgd_ridge(X, y, lmd, learning_rate, iterations, use_grad, tolerance=1e-
         mse = (1 / (2 * m)) * anp.sum((y_pred - y) ** 2)
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
-def adam_gdm_ols(X, y, learning_rate, iterations, momentum, use_grad, tolerance=1e-6):
-    if use_grad:
+def adam_gdm_ols(X, y, learning_rate, iterations, momentum, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     beta = anp.zeros((n, 1))
@@ -877,7 +864,7 @@ def adam_gdm_ols(X, y, learning_rate, iterations, momentum, use_grad, tolerance=
 
     for i in range(1, iterations + 1):
         y_pred = X @ beta
-        if use_grad:
+        if USE_GRAD:
             gradients = (1.0 / m) * training_gradient(beta, X, y)
         else:
             gradients = (1.0 / m) * X.T @ (y_pred - y)
@@ -892,16 +879,14 @@ def adam_gdm_ols(X, y, learning_rate, iterations, momentum, use_grad, tolerance=
         mse = (1 / (2 * m)) * anp.sum((y_pred - y) ** 2)
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
-def adam_gdm_ridge(
-    X, y, lmd, learning_rate, iterations, momentum, use_grad, tolerance=1e-6
-):
-    if use_grad:
+def adam_gdm_ridge(X, y, lmd, learning_rate, iterations, momentum, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     beta = anp.zeros((n, 1))
@@ -915,7 +900,7 @@ def adam_gdm_ridge(
 
     for i in range(1, iterations + 1):
         y_pred = X @ beta
-        if use_grad:
+        if USE_GRAD:
             gradients = (1.0 / m) * training_gradient(beta, X, y, lmd)
         else:
             gradients = (1.0 / m) * (X.T @ (y_pred - y) + lmd * beta)
@@ -930,14 +915,14 @@ def adam_gdm_ridge(
         mse = (1 / (2 * m)) * anp.sum((y_pred - y) ** 2)
 
         if abs(prev_loss - mse) < tolerance:
-            return beta, i
+            return beta, i, mse
         prev_loss = mse
 
-    return beta, iterations
+    return beta, iterations, mse
 
 
-def adam_sgd_ols(X, y, learning_rate, epochs, mb_size, use_grad, tolerance=1e-6):
-    if use_grad:
+def adam_sgd_ols(X, y, learning_rate, epochs, mb_size, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -955,10 +940,10 @@ def adam_sgd_ols(X, y, learning_rate, epochs, mb_size, use_grad, tolerance=1e-6)
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradients = (1.0 / m) * training_gradient(beta, X, y)
+            if USE_GRAD:
+                gradients = (1.0 / m) * training_gradient(beta, Xi, yi)
             else:
-                gradients = (1.0 / m) * X.T @ (y_pred - y)
+                gradients = (1.0 / m) * Xi.T @ (y_pred - yi)
             first_moment = beta1 * first_moment + (1 - beta1) * gradients
             second_moment = beta2 * second_moment + (1 - beta2) * gradients * gradients
             first_term = first_moment / (1.0 - beta1**i)
@@ -969,14 +954,14 @@ def adam_sgd_ols(X, y, learning_rate, epochs, mb_size, use_grad, tolerance=1e-6)
             mse = (1 / (2 * m)) * np.sum((y_pred - yi) ** 2)
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
-def adam_sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, use_grad, tolerance=1e-6):
-    if use_grad:
+def adam_sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, tolerance=1e-6):
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -993,10 +978,10 @@ def adam_sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, use_grad, toleranc
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradients = (1.0 / m) * training_gradient(beta, X, y, lmd)
+            if USE_GRAD:
+                gradients = (1.0 / m) * training_gradient(beta, Xi, yi, lmd)
             else:
-                gradients = (1.0 / m) * (X.T @ (y_pred - y) + lmd * beta)
+                gradients = (1.0 / m) * (Xi.T @ (y_pred - yi) + lmd * beta)
             first_moment = beta1 * first_moment + (1 - beta1) * gradients
             second_moment = beta2 * second_moment + (1 - beta2) * gradients * gradients
             first_term = first_moment / (1.0 - beta1**i)
@@ -1009,16 +994,16 @@ def adam_sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, use_grad, toleranc
             )
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
 def adam_sgd_momentum_ols(
-    X, y, learning_rate, epochs, mb_size, momentum, use_grad, tolerance=1e-6
+    X, y, learning_rate, epochs, mb_size, momentum, tolerance=1e-6
 ):
-    if use_grad:
+    if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -1037,10 +1022,10 @@ def adam_sgd_momentum_ols(
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradients = (1.0 / m) * training_gradient(beta, X, y)
+            if USE_GRAD:
+                gradients = (1.0 / m) * training_gradient(beta, Xi, yi)
             else:
-                gradients = (1.0 / m) * X.T @ (y_pred - y)
+                gradients = (1.0 / m) * Xi.T @ (y_pred - yi)
             first_moment = beta1 * first_moment + (1 - beta1) * gradients
             second_moment = beta2 * second_moment + (1 - beta2) * gradients * gradients
             first_term = first_moment / (1.0 - beta1**i)
@@ -1052,16 +1037,16 @@ def adam_sgd_momentum_ols(
             mse = (1 / (2 * m)) * np.sum((y_pred - yi) ** 2)
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
+    return beta, iterations, epochs, mse
 
 
 def adam_sgd_momentum_ridge(
-    X, y, lmd, learning_rate, epochs, mb_size, momentum, use_grad, tolerance=1e-6
+    X, y, lmd, learning_rate, epochs, mb_size, momentum, tolerance=1e-6
 ):
-    if use_grad:
+    if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
     iterations = int(m / mb_size)
@@ -1080,10 +1065,10 @@ def adam_sgd_momentum_ridge(
             Xi = X[index : index + mb_size] if index + mb_size <= m else X[index:m]
             yi = y[index : index + mb_size] if index + mb_size <= m else y[index:m]
             y_pred = Xi @ beta
-            if use_grad:
-                gradients = (1.0 / m) * training_gradient(beta, X, y, lmd)
+            if USE_GRAD:
+                gradients = (1.0 / m) * training_gradient(beta, Xi, yi, lmd)
             else:
-                gradients = (1.0 / m) * (X.T @ (y_pred - y) + lmd * beta)
+                gradients = (1.0 / m) * (Xi.T @ (y_pred - yi) + lmd * beta)
             first_moment = beta1 * first_moment + (1 - beta1) * gradients
             second_moment = beta2 * second_moment + (1 - beta2) * gradients * gradients
             first_term = first_moment / (1.0 - beta1**i)
@@ -1097,25 +1082,7 @@ def adam_sgd_momentum_ridge(
             )
 
             if abs(prev_loss - mse) < tolerance:
-                return beta, i, epoch
+                return beta, i, epoch, mse
             prev_loss = mse
 
-    return beta, iterations, epochs
-
-
-def franke_function(x, y):
-    term1 = 0.75 * np.exp(-(0.25 * (9 * x - 2) ** 2) - 0.25 * ((9 * y - 2) ** 2))
-    term2 = 0.75 * np.exp(-((9 * x + 1) ** 2) / 49.0 - 0.1 * (9 * y + 1))
-    term3 = 0.5 * np.exp(-((9 * x - 7) ** 2) / 4.0 - 0.25 * ((9 * y - 3) ** 2))
-    term4 = -0.2 * np.exp(-((9 * x - 4) ** 2) - (9 * y - 7) ** 2)
-    return term1 + term2 + term3 + term4
-
-
-def save_plot(filename):
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    output_dir = os.path.join(current_dir, "src", "Figures")
-    os.makedirs(output_dir, exist_ok=True)
-
-    output_file_path = os.path.join(output_dir, f"{filename}.png")
-    plt.savefig(output_file_path)
-    plt.close()
+    return beta, iterations, epochs, mse
