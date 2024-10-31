@@ -271,9 +271,9 @@ def eval_ffnn():
     epochs = 100
     mini_batch_size = 10
     mode = "regression"
-    learning_rates = [0.00001, 0.0001, 0.001, 0.01]
+    learning_rates = [0.0001, 0.001, 0.01, 0.1]
 
-    lmbdas = [0.0, 0.001, 0.1, 1.0]
+    lmbdas = [0.0, 0.001, 0.01, 0.1]
     best_mse_test = float("inf")
     best_r2_test = float("-inf")
     best_params = {}
@@ -347,14 +347,14 @@ def eval_ffnn():
         plt.xlabel("Learning Rate")
         plt.ylabel("Lambda (Regularization)")
     plt.tight_layout()
-    save_plot("ffnn_mse_heatmap_various_activations_test")
+    save_plot("ffnn_mse_heatmap_various_activations")
     plt.show()
 
     return results, best_params
 
 
 def eval_classification_ffnn():
-    from sklearn.metrics import accuracy_score
+    from sklearn.metrics import accuracy_score, confusion_matrix
 
     # malignant[0], benign[1], positive indicates cancer.
     from sklearn.datasets import load_breast_cancer
@@ -374,30 +374,51 @@ def eval_classification_ffnn():
     layer_sizes = [30, 32, 16, 1]
     learning_rates = [0.0001, 0.001, 0.01, 0.1]
 
-    epochs = 1000
+    epochs = [100, 200, 500]
+
     mini_batch_size = 10
-    for lr in learning_rates:
+    accuracy_matrix = np.zeros((len(epochs), len(learning_rates)))
 
-        nn = FeedForwardNeuralNetwork(
-            X_train,
-            y_train,
-            layer_sizes,
-            epochs,
-            lr,
-            "sigmoid",
-            mini_batch_size,
-            mode="classification",
-        )
-        nn.train_network()
+    for i, epoch in enumerate(epochs):
 
-        pred = nn.predict(X_test)
-        y_true = y_test
+        for j, lr in enumerate(learning_rates):
 
-        accuracy = accuracy_score(y_true, pred)
-        print(f"Accuracy: {accuracy}, Learning rate: {lr}")
+            nn = FeedForwardNeuralNetwork(
+                X_train,
+                y_train,
+                layer_sizes,
+                epoch,
+                lr,
+                "sigmoid",
+                mini_batch_size,
+                mode="classification",
+            )
+            nn.train_network()
 
-        print(f"Training complete for learning rate {lr} ")
-        print("-------------------------------------------------")
+            pred = nn.predict(X_test)
+
+            accuracy = accuracy_score(y_test, pred)
+            accuracy_matrix[i, j] = accuracy
+            cm = confusion_matrix(y_test, pred)
+
+            print(f"Accuracy: {accuracy:.4f}, Learning rate: {lr}, Epochs: {epoch}")
+            print("Confusion Matrix:")
+            print(cm)
+            print("-------------------------------------------------")
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(
+        accuracy_matrix,
+        annot=True,
+        xticklabels=learning_rates,
+        yticklabels=epochs,
+        cmap="YlGnBu",
+        cbar_kws={"label": "Accuracy"},
+    )
+    plt.xlabel("Learning Rate")
+    plt.ylabel("Epochs")
+    plt.title("Accuracy Heatmap for Different Learning Rates and Epochs")
+    save_plot("classification_accuracy_ffnn_heatmap")
+    plt.show()
 
 
 def generate_data():
@@ -425,6 +446,84 @@ def generate_data():
     return X_train, X_test, z_train, z_test, scaler_Z
 
 
+def plot_ols(res):
+    plt.figure(figsize=(12, 5))
+
+    # Plot MSE
+    plt.subplot(1, 2, 1)
+    plt.plot(res["Degree"], res["Train MSE"], marker="o", label="Train MSE")
+    plt.plot(res["Degree"], res["Test MSE"], marker="o", label="Test MSE")
+    plt.title("MSE vs. Polynomial Degree")
+    plt.xlabel("Polynomial Degree")
+    plt.ylabel("Mean Squared Error")
+    plt.legend()
+    plt.grid()
+
+    # Plot R²
+    plt.subplot(1, 2, 2)
+    plt.plot(res["Degree"], res["Train R²"], marker="o", label="Train R²")
+    plt.plot(res["Degree"], res["Test R²"], marker="o", label="Test R²")
+    plt.title("R² vs. Polynomial Degree")
+    plt.xlabel("Polynomial Degree")
+    plt.ylabel("R² Score")
+    plt.legend()
+    plt.grid()
+
+    plt.tight_layout()
+    save_plot("ols_mse_r2")
+    plt.show()
+
+
+def plot_ridge(result):
+    lambda_to_plot = 0.01  # Choose the lambda value you want to visualize
+
+    plt.figure(figsize=(12, 5))
+
+    # Plot MSE
+    plt.subplot(1, 2, 1)
+    plt.plot(
+        ridge_res[lambda_to_plot]["Degree"],
+        ridge_res[lambda_to_plot]["Train MSE"],
+        marker="o",
+        label="Train MSE",
+    )
+    plt.plot(
+        ridge_res[lambda_to_plot]["Degree"],
+        ridge_res[lambda_to_plot]["Test MSE"],
+        marker="o",
+        label="Test MSE",
+    )
+    plt.title(f"MSE vs. Polynomial Degree (Lambda = {lambda_to_plot})")
+    plt.xlabel("Polynomial Degree")
+    plt.ylabel("Mean Squared Error")
+    plt.legend()
+    plt.grid()
+
+    # Plot R²
+    plt.subplot(1, 2, 2)
+    plt.plot(
+        ridge_res[lambda_to_plot]["Degree"],
+        ridge_res[lambda_to_plot]["Train R²"],
+        marker="o",
+        label="Train R²",
+    )
+    plt.plot(
+        ridge_res[lambda_to_plot]["Degree"],
+        ridge_res[lambda_to_plot]["Test R²"],
+        marker="o",
+        label="Test R²",
+    )
+    plt.title(f"R² vs. Polynomial Degree (Lambda = {lambda_to_plot})")
+    plt.xlabel("Polynomial Degree")
+    plt.ylabel("R² Score")
+    plt.legend()
+    plt.grid()
+
+    plt.tight_layout()
+    save_plot("ridge_mse_r2")
+    plt.show()
+
+
 if __name__ == "__main__":
 
     input = sys.argv[1]
@@ -432,11 +531,15 @@ if __name__ == "__main__":
     if input == "reg":
         X_train, X_test, z_train, z_test, scaler_Z = generate_data()
         ols_res = ols_regression()
+        plot_ols(ols_res)
+
         ridge_res = ridge_regression()
+        plot_ridge(ridge_res)
+
         ffnn_res = eval_ffnn()
 
-        print(f"OLS: {ols_res}")
-        print(f"Ridge: {ridge_res}")
+        # print(f"OLS: {ols_res}")
+        # print(f"Ridge: {ridge_res}")
         param_grid = {
             "learning_rate_init": [0.0001, 0.001, 0.01, 0.1],
             "alpha": [1e-6, 1e-4, 1e-2, 1e-1],

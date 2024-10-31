@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 from sklearn.preprocessing import StandardScaler, PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
@@ -55,7 +56,11 @@ def ols_regression(n=100, noise=0.1, max_degree=5):
         beta_values.append(betas)
         res.append((degree, mse_train, mse_test, r2_train, r2_test))
 
-    return res
+    results = pd.DataFrame(
+        res, columns=["Degree", "Train MSE", "Test MSE", "Train R²", "Test R²"]
+    )
+
+    return results
 
 
 def ridge_regression(n=100, noise=0.1, max_degree=5):
@@ -109,7 +114,14 @@ def ridge_regression(n=100, noise=0.1, max_degree=5):
             mse_values_test[lmb].append(mse_test)
             mse_values[lmb].append(mse_train)
             res[lmb].append((degree, mse_train, mse_test, r2_train, r2_test))
-    return res
+
+    ridge_results_df = {
+        lmb: pd.DataFrame(
+            res, columns=["Degree", "Train MSE", "Test MSE", "Train R²", "Test R²"]
+        )
+        for lmb, res in res.items()
+    }
+    return ridge_results_df
 
 
 ridge_regression()
