@@ -1,7 +1,8 @@
-import numpy as np
+import autograd.numpy as np
 from autograd import grad
 import autograd.numpy as anp
 from global_values import USE_GRAD
+from sklearn.model_selection import train_test_split
 
 
 def CostOLS(beta, X, y):
@@ -1092,3 +1093,52 @@ def adam_sgd_momentum_ridge(
             prev_loss = mse
 
     return beta, iterations, epochs, mse
+
+
+def sigmoid(z):
+    # Clip input to avoid overflow in exp
+    z = np.clip(z, -500, 500)
+    return 1 / (1 + np.exp(-z))
+
+
+def CostLog(beta, X, y):
+    # Calculate predictions with sigmoid
+    y_pred = sigmoid(X @ beta)
+
+    # Clip predictions to avoid log(0)
+    y_pred = np.clip(y_pred, 1e-10, 1 - 1e-10)
+    return -np.mean(y * np.log(y_pred) + (1 - y) * np.log(1 - y_pred))
+
+
+def sgd_log(X, y, mb_size, epochs, tolerance=1e-6):
+    X_train, X_validate, y_train, y_validate = train_test_split(X, y, test_size=0.2)
+    training_gradient = grad(CostLog)
+    m, n = X_train.shape
+    iterations = int(m / mb_size)
+    beta = np.zeros((n, 1))
+    prev_score = float("inf")
+
+    for epoch in range(epochs):
+        for i in range(iterations):
+            index = mb_size * np.random.randint(iterations)
+            Xi = (
+                X_train[index : index + mb_size]
+                if index + mb_size <= m
+                else X_train[index:m]
+            )
+            yi = (
+                y_train[index : index + mb_size]
+                if index + mb_size <= m
+                else y_train[index:m]
+            )
+            gradient = (1 / mb_size) * training_gradient(beta, Xi, yi)
+            learning_rate = learning_schedule(epoch * iterations + i)
+            beta -= learning_rate * gradient
+
+            score = CostLog(beta, X_validate, y_validate)
+
+            if abs(score - prev_score) < tolerance:
+                return beta, score
+            prev_score = score
+
+    return beta, score

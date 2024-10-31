@@ -25,6 +25,9 @@ from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.datasets import load_breast_cancer
+from sklearn.metrics import accuracy_score
+from gradient_methods import sgd_log, sigmoid
 
 
 class FeedForwardNeuralNetwork:
@@ -361,7 +364,6 @@ def eval_classification_ffnn():
     from sklearn.metrics import accuracy_score, confusion_matrix
 
     # malignant[0], benign[1], positive indicates cancer.
-    from sklearn.datasets import load_breast_cancer
 
     data = load_breast_cancer()
 
@@ -423,6 +425,48 @@ def eval_classification_ffnn():
     plt.title("Accuracy Heatmap for Different Learning Rates and Epochs")
     save_plot("classification_accuracy_ffnn_heatmap")
     plt.show()
+
+
+def test_classification_ffnn(X_train, y_train, X_test, y_test, lmb):
+    layer_sizes = [30, 32, 16, 1]
+
+    epochs = 1000
+    mini_batch_size = 10
+    nn = FeedForwardNeuralNetwork(
+        X_train,
+        y_train,
+        layer_sizes,
+        epochs,
+        lmb,
+        "sigmoid",
+        mini_batch_size,
+        mode="classification",
+    )
+    nn.train_network()
+
+    pred = nn.predict(X_test)
+    y_true = y_test
+
+    return accuracy_score(y_true, pred)
+
+
+def eval_logistic_regression(X, y):
+    mb_sizes = [5, 10, 15]
+    current_score = 0
+    current_mb_size = None
+    for mbs in mb_sizes:
+        _, score = sgd_log(X, y, mbs, epochs=1000)
+        if score > current_score:
+            current_score = score
+            current_mb_size = mbs
+        print(str(mbs) + " gave score " + str(score))
+    return current_mb_size
+
+
+def test_logistic_regression(X_train, X_test, y_train, y_test, mb_size):
+    beta, _ = sgd_log(X_train, y_train, mb_size, epochs=1000)
+    y_pred = sigmoid(X_test @ beta)
+    return accuracy_score(y_pred=y_pred, y_true=y_test)
 
 
 def generate_data():
@@ -577,3 +621,34 @@ if __name__ == "__main__":
     elif input == "class":
         eval_classification_ffnn()
         print("Classification task completed.")
+    elif input == "logistic":
+
+        data = load_breast_cancer()
+
+        X = data.data
+        y = data.target.reshape(-1, 1)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        X_test = scaler.transform(X_test)
+
+        """
+        eval_classification_ffnn tells us that the optimal learning rate is 0.0001
+        test_classification_ffnn trains the nn with this learning rate and returns the test score 
+        """
+        ffnn_accuray = test_classification_ffnn(
+            X_train, y_train, X_test, y_test, 0.0001
+        )
+        print(ffnn_accuray)
+        """
+        Since Logistic regression must be evaluated first to find the optimal learning rate.
+        eval_logistic regression will use the same cost function and the same array of learning rates
+        """
+        optimal_mb_size = eval_logistic_regression(X, y)
+        logistic_accuracy = test_logistic_regression(
+            X_train, X_test, y_train, y_test, optimal_mb_size
+        )
+        print(logistic_accuracy)
