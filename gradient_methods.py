@@ -13,6 +13,10 @@ def CostRidge(beta, X, y, lmd):
     return anp.sum((y - X @ beta) ** 2) / m + (lmd / (2 * m)) * anp.sum(beta**2)
 
 
+def learning_schedule(t):
+    return 5 / (t + 50)
+
+
 def gradient_descent_ols(X, y, learning_rate, iterations, tolerance=1e-6):
     if USE_GRAD:
         training_gradient = grad(CostOLS)
@@ -119,7 +123,7 @@ def gradient_descent_momentum_ridge(
     return beta, iterations, mse
 
 
-def sgd_ols(X, y, learning_rate, epochs, mb_size, tolerance=1e-6):
+def sgd_ols(X, y, epochs, mb_size, tolerance=1e-6):
     if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
@@ -137,6 +141,7 @@ def sgd_ols(X, y, learning_rate, epochs, mb_size, tolerance=1e-6):
                 gradient = (1 / mb_size) * training_gradient(beta, Xi, yi)
             else:
                 gradient = (1 / mb_size) * Xi.T @ (y_pred - yi)
+            learning_rate = learning_schedule(epoch * iterations + i)
             beta -= learning_rate * gradient
 
             mse = (1 / (2 * m)) * np.sum((y_pred - yi) ** 2)
@@ -148,7 +153,7 @@ def sgd_ols(X, y, learning_rate, epochs, mb_size, tolerance=1e-6):
     return beta, iterations, epochs, mse
 
 
-def sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, tolerance=1e-6):
+def sgd_ridge(X, y, lmd, epochs, mb_size, tolerance=1e-6):
     if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
@@ -166,6 +171,7 @@ def sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, tolerance=1e-6):
                 gradient = (1 / mb_size) * training_gradient(beta, Xi, yi, lmd)
             else:
                 gradient = (1 / mb_size) * (Xi.T @ (y_pred - yi) + lmd * beta)
+            learning_rate = learning_schedule(epoch * iterations + i)
             beta -= learning_rate * gradient
 
             mse = (1 / (2 * m)) * np.sum((y_pred - yi) ** 2) + (lmd / (2 * m)) * np.sum(
@@ -179,7 +185,7 @@ def sgd_ridge(X, y, lmd, learning_rate, epochs, mb_size, tolerance=1e-6):
     return beta, iterations, epochs, mse
 
 
-def sgd_momentum_ols(X, y, learning_rate, epochs, mb_size, momentum, tolerance=1e-6):
+def sgd_momentum_ols(X, y, epochs, mb_size, momentum, tolerance=1e-6):
     if USE_GRAD:
         training_gradient = grad(CostOLS)
     m, n = X.shape
@@ -198,6 +204,7 @@ def sgd_momentum_ols(X, y, learning_rate, epochs, mb_size, momentum, tolerance=1
                 gradient = (1 / mb_size) * training_gradient(beta, Xi, yi)
             else:
                 gradient = (1 / mb_size) * Xi.T @ (y_pred - yi)
+            learning_rate = learning_schedule(epoch * iterations + i)
             velocity = momentum * velocity - learning_rate * gradient
             beta += velocity
 
@@ -210,9 +217,7 @@ def sgd_momentum_ols(X, y, learning_rate, epochs, mb_size, momentum, tolerance=1
     return beta, iterations, epochs, mse
 
 
-def sgd_momentum_ridge(
-    X, y, lmd, learning_rate, epochs, mb_size, momentum, tolerance=1e-6
-):
+def sgd_momentum_ridge(X, y, lmd, epochs, mb_size, momentum, tolerance=1e-6):
     if USE_GRAD:
         training_gradient = grad(CostRidge)
     m, n = X.shape
@@ -231,6 +236,7 @@ def sgd_momentum_ridge(
                 gradient = (1 / mb_size) * training_gradient(beta, Xi, yi, lmd)
             else:
                 gradient = (1 / mb_size) * (Xi.T @ (y_pred - yi) + lmd * beta)
+            learning_rate = learning_schedule(epoch * iterations + i)
             velocity = momentum * velocity - learning_rate * gradient
             beta += velocity
 
