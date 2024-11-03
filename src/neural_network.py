@@ -25,6 +25,8 @@ from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.datasets import load_breast_cancer
+from sklearn.metrics import accuracy_score
 
 
 class FeedForwardNeuralNetwork:
@@ -361,7 +363,6 @@ def eval_classification_ffnn():
     from sklearn.metrics import accuracy_score, confusion_matrix
 
     # malignant[0], benign[1], positive indicates cancer.
-    from sklearn.datasets import load_breast_cancer
 
     data = load_breast_cancer()
 
@@ -423,6 +424,29 @@ def eval_classification_ffnn():
     plt.title("Accuracy Heatmap for Different Learning Rates and Epochs")
     save_plot("classification_accuracy_ffnn_heatmap")
     plt.show()
+
+
+def test_classification_ffnn(X_train, y_train, X_test, y_test, lmb):
+    layer_sizes = [30, 32, 16, 1]
+
+    epochs = 1000
+    mini_batch_size = 10
+    nn = FeedForwardNeuralNetwork(
+        X_train,
+        y_train,
+        layer_sizes,
+        epochs,
+        lmb,
+        "sigmoid",
+        mini_batch_size,
+        mode="classification",
+    )
+    nn.train_network()
+
+    pred = nn.predict(X_test)
+    y_true = y_test
+
+    return accuracy_score(y_true, pred)
 
 
 def generate_data():
