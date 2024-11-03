@@ -1,5 +1,8 @@
 import csv, os
-from global_values import CSV_FILENAME, USE_GRAD
+import sys, os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from partA.global_values import CSV_FILENAME, USE_GRAD
 
 
 class OptimalParameters:
@@ -86,7 +89,7 @@ class OptimalParameters:
         """
         Adds the current gradient descent execution to a csv file named in partA.py
         """
-        filepath = f"results/{CSV_FILENAME}"
+        filepath = f"partA/results/{CSV_FILENAME}"
 
         if not os.path.exists(filepath):
             header = [

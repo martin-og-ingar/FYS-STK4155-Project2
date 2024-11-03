@@ -1,7 +1,10 @@
+import os, sys
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import autograd.numpy as np
 from autograd import grad
 import autograd.numpy as anp
-from global_values import USE_GRAD
+from partA.global_values import USE_GRAD
 from sklearn.model_selection import train_test_split
 
 
