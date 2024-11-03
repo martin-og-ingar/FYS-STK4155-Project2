@@ -138,7 +138,7 @@ def franke_function(x, y):
 
 def save_plot(filename):
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    output_dir = os.path.join(current_dir, "src", "Figures")
+    output_dir = os.path.join(current_dir, "partB_to_D", "Figures")
     os.makedirs(output_dir, exist_ok=True)
 
     output_file_path = os.path.join(output_dir, f"{filename}.png")

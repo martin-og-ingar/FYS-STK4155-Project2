@@ -35,7 +35,7 @@ from gradient_methods import (
     adam_sgd_momentum_ols,
     adam_sgd_momentum_ridge,
 )
-from classes import OptimalParameters
+from partA.OptimalParameters import OptimalParameters
 
 np.random.seed(100)
 

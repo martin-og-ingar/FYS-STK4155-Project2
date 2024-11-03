@@ -1,6 +1,5 @@
 from sklearn.datasets import load_breast_cancer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import sys, os
@@ -8,9 +7,7 @@ import sys
 import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.neural_network import (
-    FeedForwardNeuralNetwork,
-    eval_classification_ffnn,
+from partB_to_D.neural_network import (
     test_classification_ffnn,
 )
 from logistic_regression import Logistic
