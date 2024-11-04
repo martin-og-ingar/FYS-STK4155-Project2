@@ -19,7 +19,7 @@ from partB_to_D.methods import add_to_compare_log_training_score_csv
 import seaborn as sns
 
 
-def eval_logistic_regression(X_train, y_train, show_plot=True, save_plot=False):
+def eval_logistic_regression(X_train, y_train, save_plot=False):
     mb_sizes = [5, 10, 15, 20]
     lambda_values = [0.001, 0.01, 0.1, 0.5]
     epochs = [100, 200, 500]
@@ -54,10 +54,10 @@ def eval_logistic_regression(X_train, y_train, show_plot=True, save_plot=False):
             plt.xlabel("Mini batch sizes")
             plt.ylabel("Lambda (lmb)")
             plt.title(f"Accuracy Heatmap for epoch {epoch}")
-            if show_plot:
-                plt.show()
             if save_plot:
                 plt.savefig(f"partE/Figures/log_reg_epoch{epoch}_heatmap.png")
+            else:
+                plt.show()
             plt.close()
     return current_mb_size, current_lmb
 
@@ -89,7 +89,7 @@ X_test = scaler.transform(X_test)
 test_classification_ffnn trains the nn with this learning rate and returns the test score 
 """
 optimal_mb_size, optimal_epoch, optimal_lmb, optimal_lr = eval_classification_ffnn(
-    add_to_csv=True, show_plot=True, save_plot=True
+    add_to_csv=True, save_plot=True
 )
 ffnn_score = test_classification_ffnn(
     X_train,
@@ -107,7 +107,7 @@ Since Logistic regression must be evaluated first to find the optimal learning r
 eval_logistic regression will use the same cost function and the same array of learning rates
 """
 optimal_mb_size, optimal_lmb = eval_logistic_regression(
-    X_train, y_train, show_plot=True, save_plot=True
+    X_train, y_train, save_plot=True
 )
 log_score = test_logistic_regression(
     X_train, X_test, y_train, y_test, optimal_mb_size, optimal_lmb

@@ -360,7 +360,7 @@ def eval_ffnn():
     return results, best_params
 
 
-def eval_classification_ffnn(add_to_csv=False, show_plot=True, save_plot=False):
+def eval_classification_ffnn(add_to_csv=False, save_plot=False):
     from sklearn.metrics import accuracy_score, confusion_matrix
 
     # malignant[0], benign[1], positive indicates cancer.
@@ -436,10 +436,10 @@ def eval_classification_ffnn(add_to_csv=False, show_plot=True, save_plot=False):
             plt.xlabel("Learning Rate")
             plt.ylabel("Lambda (lmb)")
             plt.title(f"Accuracy Heatmap for Mini-Batch Size {mbs} and Epoch {epoch}")
-            if show_plot:
-                plt.show()
             if save_plot:
                 plt.savefig(f"partE/Figures/FFNN_epoch{epoch}_mbs{mbs}_heatmap.png")
+            else:
+                plt.show()
             plt.close()
     return optimal_mb_size, optimal_epoch, optimal_lmb, optimal_lr
 
