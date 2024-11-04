@@ -379,7 +379,7 @@ def eval_classification_ffnn():
     layer_sizes = [30, 32, 16, 1]
     learning_rates = [0.0001, 0.001, 0.01, 0.1]
 
-    epochs = [100, 200, 500]
+    epochs = [100, 200, 500, 1000]
 
     mini_batch_size = 10
     accuracy_matrix = np.zeros((len(epochs), len(learning_rates)))
@@ -396,6 +396,7 @@ def eval_classification_ffnn():
                 lr,
                 "sigmoid",
                 mini_batch_size,
+                0.1,
                 mode="classification",
             )
             nn.train_network()
