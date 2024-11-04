@@ -41,11 +41,12 @@ np.random.seed(100)
 
 n = 100
 x = 2 * np.random.rand(n, 1)
-x_scaler = StandardScaler()
-x_scaled = x_scaler.fit_transform(x)
 y = x + x**2
-X = np.c_[np.ones((n, 1)), x_scaled]
-x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+X = np.c_[np.ones((n, 1)), x]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+scaler = StandardScaler()
+x_train = scaler.fit_transform(X_train)
+x_test = scaler.transform(X_test)
 
 """
 The following numbers represent:

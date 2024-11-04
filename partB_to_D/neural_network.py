@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.datasets import load_breast_cancer
 from sklearn.metrics import accuracy_score
+from partB_to_D.methods import add_to_compare_log_training_score_csv
 
 
 class FeedForwardNeuralNetwork:
@@ -359,7 +360,7 @@ def eval_ffnn():
     return results, best_params
 
 
-def eval_classification_ffnn():
+def eval_classification_ffnn(add_to_csv=False, show_plot=True, save_plot=False):
     from sklearn.metrics import accuracy_score, confusion_matrix
 
     # malignant[0], benign[1], positive indicates cancer.
@@ -380,66 +381,81 @@ def eval_classification_ffnn():
     learning_rates = [0.0001, 0.001, 0.01, 0.1]
 
     epochs = [100, 200, 500, 1000]
+    lambda_values = [0.001, 0.01, 0.1, 0.5]
+    epochs = [100, 200, 500]
+    mini_batch_sizes = [5, 10, 15, 20]
 
-    mini_batch_size = 10
-    accuracy_matrix = np.zeros((len(epochs), len(learning_rates)))
+    optimal_mb_size = None
+    prev_accuracy = 0
+    for epoch in epochs:
 
-    for i, epoch in enumerate(epochs):
+        for mbs in mini_batch_sizes:
+            accuracy_matrix = np.zeros((len(lambda_values), len(learning_rates)))
 
-        for j, lr in enumerate(learning_rates):
+            for i, lr in enumerate(learning_rates):
 
-            nn = FeedForwardNeuralNetwork(
-                X_train,
-                y_train,
-                layer_sizes,
-                epoch,
-                lr,
-                "sigmoid",
-                mini_batch_size,
-                0.1,
-                mode="classification",
+                for j, lmb in enumerate(lambda_values):
+
+                    nn = FeedForwardNeuralNetwork(
+                        X_train,
+                        y_train,
+                        layer_sizes,
+                        epoch,
+                        lr,
+                        "sigmoid",
+                        mbs,
+                        mode="classification",
+                        lmb=lmb,
+                    )
+                    nn.train_network()
+
+                    pred = nn.predict(X_test)
+
+                    accuracy = accuracy_score(y_test, pred)
+                    if add_to_csv:
+                        add_to_compare_log_training_score_csv(
+                            "FFNN", lr, lmb, mbs, accuracy, epoch
+                        )
+                    if accuracy > prev_accuracy:
+                        optimal_mb_size = mbs
+                        optimal_lr = lr
+                        optimal_lmb = lmb
+                        optimal_epoch = epoch
+                    accuracy_matrix[i, j] = accuracy
+                    cm = confusion_matrix(y_test, pred)
+            plt.figure(figsize=(10, 8))
+            sns.heatmap(
+                accuracy_matrix,
+                annot=True,
+                fmt=".4f",
+                xticklabels=learning_rates,
+                yticklabels=lambda_values,
+                cmap="YlGnBu",
+                cbar_kws={"label": "Accuracy"},
             )
-            nn.train_network()
-
-            pred = nn.predict(X_test)
-
-            accuracy = accuracy_score(y_test, pred)
-            accuracy_matrix[i, j] = accuracy
-            cm = confusion_matrix(y_test, pred)
-
-            print(f"Accuracy: {accuracy:.4f}, Learning rate: {lr}, Epochs: {epoch}")
-            print("Confusion Matrix:")
-            print(cm)
-            print("-------------------------------------------------")
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(
-        accuracy_matrix,
-        annot=True,
-        xticklabels=learning_rates,
-        yticklabels=epochs,
-        cmap="YlGnBu",
-        cbar_kws={"label": "Accuracy"},
-    )
-    plt.xlabel("Learning Rate")
-    plt.ylabel("Epochs")
-    plt.title("Accuracy Heatmap for Different Learning Rates and Epochs")
-    save_plot("classification_accuracy_ffnn_heatmap")
-    plt.show()
+            plt.xlabel("Learning Rate")
+            plt.ylabel("Lambda (lmb)")
+            plt.title(f"Accuracy Heatmap for Mini-Batch Size {mbs} and Epoch {epoch}")
+            if show_plot:
+                plt.show()
+            if save_plot:
+                plt.savefig(f"partE/Figures/FFNN_epoch{epoch}_mbs{mbs}_heatmap.png")
+            plt.close()
+    return optimal_mb_size, optimal_epoch, optimal_lmb, optimal_lr
 
 
-def test_classification_ffnn(X_train, y_train, X_test, y_test, lmb):
+def test_classification_ffnn(X_train, y_train, X_test, y_test, lmb, mbs, lr, epochs):
     layer_sizes = [30, 32, 16, 1]
 
-    epochs = 1000
-    mini_batch_size = 10
     nn = FeedForwardNeuralNetwork(
         X_train,
         y_train,
         layer_sizes,
         epochs,
-        lmb,
+        lr,
         "sigmoid",
-        mini_batch_size,
+        mbs,
+        lmb,
         mode="classification",
     )
     nn.train_network()
@@ -447,7 +463,7 @@ def test_classification_ffnn(X_train, y_train, X_test, y_test, lmb):
     pred = nn.predict(X_test)
     y_true = y_test
 
-    return accuracy_score(y_true, pred)
+    return np.mean(pred == y_true)
 
 
 def generate_data():

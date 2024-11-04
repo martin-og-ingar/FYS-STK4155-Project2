@@ -1,3 +1,4 @@
+import csv
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -144,3 +145,37 @@ def save_plot(filename):
     output_file_path = os.path.join(output_dir, f"{filename}.png")
     plt.savefig(output_file_path)
     plt.close()
+
+
+def add_to_compare_log_training_score_csv(
+    function_name, lr, lmb, mb_size, score, epochs
+):
+    """
+    Adds the current gradient descent execution to a csv file named in partA.py
+    """
+    filepath = f"partE/results/compare_log_training_scores.csv"
+
+    if not os.path.exists(filepath):
+        header = [
+            "function name",
+            "learning rate",
+            "lambda",
+            "mini batch size",
+            "epochs",
+            "score",
+        ]
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, mode="w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(header)
+
+    with open(filepath, mode="a", newline="") as file:
+        writer = csv.writer(file)
+        row = []
+        row.append(function_name)
+        row.append(lr or "N/A")
+        row.append(lmb or "N/A")
+        row.append(mb_size or "N/A")
+        row.append(epochs or "N/A")
+        row.append(score or "N/A")
+        writer.writerow(row)
