@@ -84,19 +84,33 @@ class OptimalParameters:
             print("Iteration: " + str(self.convergence_at_iteration))
         if self.mse:
             print("Mse: " + str(self.mse))
+        self.add_to_csv(
+            self.convergence_at_iteration,
+            self.learning_rate,
+            self.epoch,
+            self.momentum,
+            self.mini_batch_size,
+            self.mse,
+            self.lmb,
+            "optimal_params_result.csv",
+        )
 
-    def add_to_csv(self, convergence, lr, epoch, mom, mb_size, mse, lmb):
+    def add_to_csv(
+        self, convergence, lr, epoch, mom, mb_size, mse, lmb, file_name=None
+    ):
         """
         Adds the current gradient descent execution to a csv file named in partA.py
         """
-        filepath = f"partA/results/{CSV_FILENAME}"
+        if file_name is None:
+            file_name = CSV_FILENAME
+        filepath = f"partA/results/{file_name}"
 
         if not os.path.exists(filepath):
             header = [
                 "function name",
                 "learning rate",
                 "momentum",
-                "lmabda",
+                "lambda",
                 "Uses grad()",
                 "mini batch size",
                 "epochs",

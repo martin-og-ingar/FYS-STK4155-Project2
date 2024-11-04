@@ -2,7 +2,6 @@
 
 ## Structure
 
-- report/ - contains the report in a PDF-format.
 - partA/
   - results/ - contains csvs with results from the gd methods
   - globale_values - contains global variables used across the files related to part a
@@ -16,7 +15,7 @@
 - partE/
   - compare_method - script for comparing all logistic regression variations
   - logistic_regression - logistic regression class
+- testing/ - tests
 - weekly/ - weekly exercise which is not working and can be ignored
+- Project2.pdf - contains the report in a PDF-format.
 - requirements - outdated requirements file
-- TODO:
-  Create a test folder and place test-function there.
