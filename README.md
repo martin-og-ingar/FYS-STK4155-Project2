@@ -17,5 +17,5 @@
   - logistic_regression - logistic regression class
 - testing/ - tests
 - weekly/ - weekly exercise which is not working and can be ignored
-- Project2.pdf - contains the report in a PDF-format.
+- report.pdf - contains the report in a PDF-format.
 - requirements - outdated requirements file
